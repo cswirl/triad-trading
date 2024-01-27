@@ -1,5 +1,6 @@
 
-
+sqrtPriceLimitX96 = 0
+GAS_FEE = 3000
 
 """
     STEPS:
@@ -22,3 +23,11 @@ def activate_filter_1():
 
     return surface_dict
 
+def get_depth_rate(address_from, address_to, amount_in):
+    _sqrtPriceLimitX96 = sqrtPriceLimitX96
+    _gas_fee = GAS_FEE
+
+    # return result from blockchain quoter
+    amount = 1
+
+    return amount
