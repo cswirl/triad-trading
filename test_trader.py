@@ -1,4 +1,4 @@
-
+import asyncio
 import unittest
 
 from trader import *
@@ -10,7 +10,7 @@ class TestTrader(unittest.TestCase):
 
         trader = Trader(['USDC_WETH', 'APE_WETH', 'APE_USDC'])
 
-        trader.start_trading()
+        asyncio.run(trader.start_trading())
 
 
     def test_trader_wakeup(self):

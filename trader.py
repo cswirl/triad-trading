@@ -12,6 +12,7 @@ TOTAL_ACTIVE_TRADERS = 33 * 30          # sleep_time = TOTAL_ACTIVE_TRADERS / RA
 RATE_LIMIT_PER_SECOND = 33
 DEFAULT_SLEEP_TIME = 0.3
 MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value
+NO_FUNDS_SLEEP_TIME = 60
 
 def get_depth_rate(trading_pair: "a string"):
     return DEPTH_MIN_RATE + 1
@@ -19,7 +20,7 @@ def get_depth_rate(trading_pair: "a string"):
 class Trader:
     def __init__(self, pathway):
         self.pathway = pathway
-        self.seedAmount = 0
+        self.seedFund = 0
         self.flags = [0,0,0]
         self.trade1_flag = 0
         self.trade2_flag = 0
@@ -27,32 +28,27 @@ class Trader:
         self.print_status_flag = True
 
 
-    def start_trading(self):
-        #while True:
+    async def start_trading(self):
+        result = True
 
-        self.hunt()
-        # if the hunt() finds a good depth - it will break its inner loop to proceed next step
-        seedFund = self.allocate_seed_fund(lambda x: 100)
-        self.seedAmount = seedFund
-        if seedFund and seedFund > 0:
-            print(f"Seed fund: {seedFund}")
-            asyncio.run(self.start_trade())
 
-        else:
-            print("No funds available")
+        while result:
+            result = await self.execute_trade()
 
+        print(f"Terminating this trader instance: result = {result}")
 
         # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
         # one full trade is enough for now for study
+        # return the fund back it not used.
 
 
-    def hunt(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
+    async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
         print("Changing state: 'Hunting'")
         while True:
             good_depth = self.inquire_depth(get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
             sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
             print(f"sleep time {sleep_time}")
-            time.sleep(float(sleep_time))
+            await asyncio.sleep(float(sleep_time))
             if good_depth:
                 print("Good Depth found. \nChanging State: 'Trading'")
                 break
@@ -60,10 +56,10 @@ class Trader:
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
         return True
 
-        seedAmount = self.seedAmount
+        seedAmount = self.seedFund
         # swap1 pnl
         #if self.trade1_flag == 0:  # idle: 0, in-progress: 1, completed:2
-        #    swap1_outputAmount = func_depth_rate("token1_address","token2_address", seedAmount)
+        #    swap1_outputAmount = func_depth_rate("token1_address","token2_address", seedFund)
 
 
 
@@ -97,26 +93,41 @@ class Trader:
         seedFund = allocate_seed_fund("token address or symbol")
         return seedFund
 
-    async def start_trade(self):
-        await asyncio.gather(self.execute_trade(), self.check_trading_status())
+    async def get_seedFund(self):
+
+        seedFund = self.allocate_seed_fund(lambda x: 100)
+        self.seedFund = seedFund
+        if seedFund and seedFund > 0:
+            print(f"Seed fund: {seedFund}")
+            return seedFund
+        else:
+            print("No funds available")
+            await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
+
+        return None
 
     async def execute_trade(self):
         start = time.perf_counter()
         try:
+            # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
+            await self.hunt_profit()
+            # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
+
+            seedFund = await self.get_seedFund()
+            if seedFund is None: return False
+
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
 
-            self.hunt(trade1_result)
+            await self.hunt_profit(trade1_result)
             trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
 
-            self.hunt(trade1_result, trade2_result)
+            await self.hunt_profit(trade1_result, trade2_result)
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
             # calculate pnl and pnl percentage
-            seedAmount = self.seedAmount
-
-            profit_loss = seedAmount and amount_out_3 - seedAmount
-            profit_loss_perc = seedAmount and profit_loss / float(seedAmount) * 100
+            profit_loss = seedFund and amount_out_3 - seedFund
+            profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
 
             print("\n### PROFIT AND LOSS ###")
             print(f"PnL : {profit_loss}")
@@ -127,11 +138,14 @@ class Trader:
             self.print_status_flag = False
             print(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
+            return False
         except:
             self.print_status_flag = False
             print(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
+            return False
 
+        return False
 
 
     async def execute_trade_1(self):
