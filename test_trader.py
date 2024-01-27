@@ -10,4 +10,4 @@ class TestTrader(unittest.TestCase):
 
         trader = Trader("USDC_WETH, APE_WETH, APE_USDC")
 
-        trader.inquire_depth(lambda x: DEPTH_MIN_RATE + 1 )
+        trader.start_trading()

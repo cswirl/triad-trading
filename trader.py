@@ -2,12 +2,19 @@ import asyncio
 import time
 
 DEPTH_MIN_RATE = 1.5
-ALL_TRADE_TIMEOUT = 60 * 60     # 60 * 60 = 1 hour
+
+ALL_TRADE_TIMEOUT = 60 * 60             # 60 * 60 = 1 hour
 TRADE_TIMEOUT = 10
 
+# RATE LIMIT WILL DICTATE THE SLEEP TIME
+# FOR TRADE OBJECT TO QUERY THE NETWORK
+TOTAL_ACTIVE_TRADERS = 33 * 30          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
+RATE_LIMIT_PER_SECOND = 33
+DEFAULT_SLEEP_TIME = 0.3
+MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value
 
-def get_depth_rate():
-    print("seek depth")
+def get_depth_rate(pathway: "a string"):
+    return DEPTH_MIN_RATE + 1
 
 class Trader:
     def __init__(self, pathway):
@@ -18,16 +25,53 @@ class Trader:
         self.trade3_flags = 0
         self.print_status_flag = True
 
+
+    def start_trading(self):
+        #while True:
+
+        self.hunt()
+        # if the hunt() finds a good depth - it will break its inner loop to proceed next step
+        seedFund = self.allocate_seed_fund(lambda x: 100)
+        if seedFund and seedFund > 0:
+            print(f"Seed fund: {seedFund}")
+            asyncio.run(self.start_trade())
+
+        else:
+            print("No funds available")
+
+
+        # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
+        # one full trade is enough for now for study
+
+
+    def hunt(self):
+        print("Changing state: 'Hunting'")
+        while True:
+            good_depth = self.inquire_depth(get_depth_rate)
+            sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
+            print(f"sleep time {sleep_time}")
+            time.sleep(float(sleep_time))
+            if good_depth:
+                print("Good Depth found. \nChanging State: 'Trading'")
+                break
+
     def inquire_depth(self, func_depth_rate):
         depth_rate = func_depth_rate(self.pathway)
 
         if depth_rate >= DEPTH_MIN_RATE:
-            asyncio.run(self.start_trade())
+            return True
+
+        return False
+
+    def allocate_seed_fund(self, allocate_seed_fund: "a function"):
+        seedFund = allocate_seed_fund("token address or symbol")
+        return seedFund
 
     async def start_trade(self):
         await asyncio.gather(self.execute_trade(), self.check_trading_status())
 
     async def execute_trade(self):
+        start = time.perf_counter()
         try:
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
@@ -37,9 +81,19 @@ class Trader:
         except asyncio.TimeoutError:
             print("The asynchronous function timed out.")
             self.print_status_flag = False
+            print(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
+        except:
+            self.print_status_flag = False
+            print(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            # delegate to another entity program - like a 'failed trade resolver'
+        finally:
+            elapsed = time.perf_counter() - start
+            print(f"COMPLETED - Three trades executed : elapsed in {elapsed:0.2f} seconds")
+
 
     async def execute_trade_1(self):
+        start = time.perf_counter()
         self.trade1_flags = 1
         print("========================executing trade 1")
 
@@ -48,11 +102,14 @@ class Trader:
         # if trade 1 is executed without problem
         self.trade1_flags  = 2
 
+        print(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+
         return "done"
 
 
 
     async def execute_trade_2(self):
+        start = time.perf_counter()
         self.trade2_flags = 1
         print("========================executing trade 2")
 
@@ -60,10 +117,12 @@ class Trader:
 
         # if trade 2 is executed without problem
         self.trade2_flags = 2
+        print(f"Trade-2 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return "done"
 
     async def execute_trade_3(self):
+        start = time.perf_counter()
         self.trade3_flags = 1
         print("========================executing trade 3")
 
@@ -71,6 +130,7 @@ class Trader:
         await asyncio.sleep(2)
 
         self.trade3_flags = 2
+        print(f"Trade-3 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return "done"
 
