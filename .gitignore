@@ -1,6 +1,10 @@
-data/
+
 uniswap_surface_rates.json
-uniswap_triads.json
+
+trade_results/
+logs/
+data/
+
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
@@ -36,7 +40,7 @@ var/
 *.manifest
 *.spec
 
-# Installer logs
+# Installer lifespan_logs
 pip-log.txt
 pip-delete-this-directory.txt
 

@@ -15,8 +15,8 @@ class TestTrader(unittest.TestCase):
 
     async def _multiple_trader_instance(self):
 
-        trader1 = Trader(['USDC_WETH', 'APE_WETH', 'APE_USDC'])
-        trader2 = Trader(['APE_WETH', 'APE_USDC', 'USDC_WETH'])
+        trader1 = Trader(pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'], pathway_triplet = "USDC_WETH_APE")
+        trader2 = Trader(pathway=['APE_WETH', 'APE_USDC', 'USDC_WETH'], pathway_triplet = "WETH_APE_USDC")
         traders = [trader1, trader2]
 
         coroutine_list = []

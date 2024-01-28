@@ -1,6 +1,9 @@
 import asyncio
 import time
 import uuid
+from datetime import datetime
+
+import utils
 
 
 DEPTH_MIN_RATE = 1.5
@@ -20,15 +23,20 @@ def get_depth_rate(trading_pair: "a string"):
     return DEPTH_MIN_RATE + 1
 
 class Trader:
-    def __init__(self, pathway):
+    def __init__(self, **kwargs):
         self.id = uuid.uuid4()
-        self.pathway = pathway
+        self.pathway_triplet = kwargs["pathway_triplet"]    # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
+        self.pathway = kwargs["pathway"]
         self.seedFund = 0
         self.flags = [0,0,0]
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
         self.print_status_flag = True
+        self.lifespan_logs = []
+        self.trade_logs = []
+
+        self.logger(f"Greetings from {str(self)}")
 
     async def start_trading(self):
         result = True
@@ -37,7 +45,9 @@ class Trader:
         while result:
             result = await self.execute_trade()
 
-        print(f"Terminating this trader instance: result = {result}")
+        self.logger(f"Terminating {self.id} : result = {result}")
+
+        self.save_logs()
 
         # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
         # one full trade is enough for now for study
@@ -45,14 +55,15 @@ class Trader:
 
 
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
-        print("Changing state: 'Hunting'")
+        self.logger("Changing state: 'Hunting'")
         while True:
             good_depth = self.inquire_depth(get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
             sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
-            print(f"sleep time {sleep_time}")
+            self.logger(f"sleep time {sleep_time}")
             await asyncio.sleep(float(sleep_time))
             if good_depth:
-                print("Good Depth found. \nChanging State: 'Trading'")
+                self.logger("Good Depth found.")
+                self.logger("Changing State: 'Trading'")
                 break
 
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
@@ -100,10 +111,10 @@ class Trader:
         seedFund = self.allocate_seed_fund(lambda x: 100)
         self.seedFund = seedFund
         if seedFund and seedFund > 0:
-            print(f"Seed fund: {seedFund}")
+            self.logger(f"Seed fund: {seedFund}")
             return seedFund
         else:
-            print("No funds available")
+            self.logger("No funds available")
             await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
 
         return None
@@ -131,19 +142,29 @@ class Trader:
             profit_loss = seedFund and amount_out_3 - seedFund
             profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
 
-            print("\n### PROFIT AND LOSS ###")
-            print(f"PnL : {profit_loss}")
-            print(f"PnL % : {profit_loss_perc}")
-            print(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
+
+
+            self.logger("### PROFIT AND LOSS ###")
+            self.logger(f"PnL : {profit_loss}")
+            self.logger(f"PnL % : {profit_loss_perc}")
+            self.logger(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
+
+            result_dict = {
+                "id": str(self),
+                "pnl": profit_loss,
+                "pnlPerc": profit_loss_perc,
+                "trade_logs": self.lifespan_logs
+            }
+            self.save_result_json(result_dict)
         except asyncio.TimeoutError:
-            print("The asynchronous function timed out.")
+            self.logger("The asynchronous function timed out.")
             self.print_status_flag = False
-            print(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
         except:
             self.print_status_flag = False
-            print(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
 
@@ -153,15 +174,15 @@ class Trader:
     async def execute_trade_1(self):
         start = time.perf_counter()
         self.trade1_flag = 1
-        print("========================executing trade 1")
+        self.logger("========================executing trade 1")
 
         await asyncio.sleep(5)
 
         # if trade 1 is executed without problem
         self.trade1_flag  = 2
 
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        self.logger(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
 
@@ -170,30 +191,30 @@ class Trader:
     async def execute_trade_2(self):
         start = time.perf_counter()
         self.trade2_flag = 1
-        print("========================executing trade 2")
+        self.logger("========================executing trade 2")
 
         await asyncio.sleep(TRADE_TIMEOUT - 7)
 
         # if trade 2 is executed without problem
         self.trade2_flag = 2
 
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print(f"Trade-2 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        self.logger(f"Trade-2 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
 
     async def execute_trade_3(self):
         start = time.perf_counter()
         self.trade3_flag = 1
-        print("========================executing trade 3")
+        self.logger("========================executing trade 3")
 
         # if trade 3 is executed without problem
         await asyncio.sleep(2)
 
         self.trade3_flag = 2
 
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        print(f"Trade-3 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        self.logger(f"Trade-3 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
 
@@ -210,17 +231,17 @@ class Trader:
         self.print_status()
 
     def print_status(self):
-        print("####################")
+        self.logger("####################")
         trade1_status = self.get_print_status(self.trade1_flag)
-        print(f"Trade 1 status: {trade1_status}")
+        self.logger(f"Trade 1 status: {trade1_status}")
         # print(f" trade1_flag: {self.trade1_flag}")
 
         trade2_status = self.get_print_status(self.trade2_flag)
-        print(f"Trade 2 status: {trade2_status}")
+        self.logger(f"Trade 2 status: {trade2_status}")
         # print(f" trade2_flag: {self.trade2_flag}")
 
         trade3_status = self.get_print_status(self.trade3_flag)
-        print(f"Trade 3 status: {trade3_status}")
+        self.logger(f"Trade 3 status: {trade3_status}")
         # print(f" trade3_flag: {self.trade3_flag}")
 
     def get_print_status(self, flag):
@@ -228,3 +249,28 @@ class Trader:
         elif flag == 1: return "in-progress"
         elif flag == 2: return "completed"
         else: return "Invalid trade flag value"
+
+
+    def logger(self, msg):
+        self.lifespan_logs.append(msg)
+        self.trade_logs.append(msg)
+        print(msg)
+
+    def save_result_json(self, result_dict):
+        filename = str(self) + '.json'
+        utils.save_json_to_file(result_dict, utils.TRADE_RESULT_FILE_PATH, filename)
+
+        # save lifespan logs after each three trades
+        self.save_logs()
+        # clear trade logs after each three trades
+        self.trade_logs.clear()
+
+
+    def save_logs(self):
+        filename = str(self) + '.txt'
+        logs = "\n".join(self.lifespan_logs)
+        utils.save_text_file(logs, utils.LOGS_FILE_PATH, filename)
+
+
+    def __str__(self):
+        return self.pathway_triplet + '_' + str(self.id)
