@@ -1,5 +1,7 @@
 import asyncio
 import time
+import uuid
+
 
 DEPTH_MIN_RATE = 1.5
 
@@ -8,7 +10,7 @@ TRADE_TIMEOUT = 10
 
 # RATE LIMIT WILL DICTATE THE SLEEP TIME
 # FOR TRADE OBJECT TO QUERY THE NETWORK
-TOTAL_ACTIVE_TRADERS = 33 * 30          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
+TOTAL_ACTIVE_TRADERS = 33 * 10          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
 RATE_LIMIT_PER_SECOND = 33
 DEFAULT_SLEEP_TIME = 0.3
 MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value
@@ -19,6 +21,7 @@ def get_depth_rate(trading_pair: "a string"):
 
 class Trader:
     def __init__(self, pathway):
+        self.id = uuid.uuid4()
         self.pathway = pathway
         self.seedFund = 0
         self.flags = [0,0,0]
@@ -26,7 +29,6 @@ class Trader:
         self.trade2_flag = 0
         self.trade3_flag = 0
         self.print_status_flag = True
-
 
     async def start_trading(self):
         result = True
