@@ -45,13 +45,13 @@ class Trader:
         while result:
             result = await self.execute_trade()
 
-        self.logger(f"Terminating {self.id} : result = {result}")
+        self.logger(f"Terminating {self.id} : result = {result or "not set"}")
 
         self.save_logs()
 
         # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
         # one full trade is enough for now for study
-        # return the fund back it not used.
+        # return the fund back after - whether it is used or not
 
 
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
@@ -85,11 +85,17 @@ class Trader:
         if amount_out_1 == 0:
             amount_out_1 = func_depth_rate("token1_address","token2_address", seedAmount)
 
+            # todo: log result in text or json
+
         if amount_out_2 == 0:
             amount_out_2 = func_depth_rate("token1_address","token2_address", amount_out_1)
 
+            # todo: log result in text or json
+
         if amount_out_3 == 0:
             amount_out_3 = func_depth_rate("token1_address","token2_address", amount_out_2)
+
+            # todo: log result in text or json
 
 
         # calculate pnl and pnl percentage
@@ -141,7 +147,6 @@ class Trader:
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
             profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
-
 
 
             self.logger("### PROFIT AND LOSS ###")
@@ -257,10 +262,15 @@ class Trader:
         print(msg)
 
     def save_result_json(self, result_dict):
-        filename = str(self) + '.json'
-        utils.save_json_to_file(result_dict, utils.TRADE_RESULT_FILE_PATH, filename)
+        # Generate a timestamp
+        _now = datetime.now()   # for utc, use datetime.now(timezone.utc) - import timezone
+        result_dict["timestamp"] = _now.strftime("%Y-%m-%d %H:%M:%S")
+        filename_timestamp = _now.strftime("%Y-%m-%d_%Hh%Mm%Ss")
+        filename = f"{str(self)}_{filename_timestamp}.json"
 
-        # save lifespan logs after each three trades
+        utils.save_json_to_file(result_dict, utils.TRADE_RESULT_FOLDER_PATH, filename)
+
+        # save lifespan logs after each of the three trades
         self.save_logs()
         # clear trade logs after each three trades
         self.trade_logs.clear()
@@ -269,7 +279,7 @@ class Trader:
     def save_logs(self):
         filename = str(self) + '.txt'
         logs = "\n".join(self.lifespan_logs)
-        utils.save_text_file(logs, utils.LOGS_FILE_PATH, filename)
+        utils.save_text_file(logs, utils.LOGS_FOLDER_PATH, filename)
 
 
     def __str__(self):
