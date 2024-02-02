@@ -34,6 +34,17 @@ def save_text_file(data, folder_path, file_name):
 
 ### HELPER FUNCTIONS
 
+def load_json_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            print(f"json data from {file_path} was loaded")
+            return data
+    except FileNotFoundError:
+        print(f"error loading json data: File '{file_path}' not found.")
+    except json.JSONDecodeError:
+        print(f"error decoding JSON in file '{file_path}'.")
+
 def filepath_today_folder(folder_path, filename):
     # Get the current date
     current_date = datetime.now().strftime("%Y-%m-%d")
