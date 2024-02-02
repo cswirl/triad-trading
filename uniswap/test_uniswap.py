@@ -94,7 +94,8 @@ class TestUniswap(unittest.TestCase):
 
             data_pools.append(pools_dict)
 
-        utils.save_json_to_file(data_pools, utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
+        file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
+        utils.save_json_to_file(data_pools, file_path)
 
     def _token_to_dict(self, token):
         return {

@@ -45,7 +45,8 @@ def retrieve_data_pools(cache=True):
     if cache:
         print(f"getting data pools from local cache...")
         # if no local cache found then pull data from a data source
-        pools = utils.load_json_file(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME) or fetch_uniswap_data_pools() or None
+        file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
+        pools = utils.load_json_file(file_path) or fetch_uniswap_data_pools() or None
     else:
         pools = fetch_uniswap_data_pools()
 
@@ -65,7 +66,8 @@ def fetch_uniswap_data_pools():
 
     if pools:
         # save to local cache
-        utils.save_json_to_file(pools,utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
+        file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
+        utils.save_json_to_file(pools, file_path)
 
     return pools
 

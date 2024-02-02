@@ -268,7 +268,8 @@ class Trader:
         filename_timestamp = _now.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         filename = f"{str(self)}_{filename_timestamp}.json"
 
-        utils.save_json_to_file(result_dict, utils.TRADE_RESULT_FOLDER_PATH, filename)
+        file_path = utils.filepath_today_folder(utils.TRADE_RESULT_FOLDER_PATH, filename)
+        utils.save_json_to_file(result_dict, file_path)
 
         # save lifespan logs after each of the three trades
         self.save_logs()
@@ -279,7 +280,7 @@ class Trader:
     def save_logs(self):
         filename = str(self) + '.txt'
         logs = "\n".join(self.lifespan_logs)
-        utils.save_text_file(logs, utils.LOGS_FOLDER_PATH, filename)
+        utils.save_text_file(logs, utils.filepath_today_folder(utils.LOGS_FOLDER_PATH, filename))
 
 
     def __str__(self):
