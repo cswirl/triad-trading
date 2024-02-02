@@ -34,7 +34,8 @@ def save_text_file(data, folder_path, file_name):
 
 ### HELPER FUNCTIONS
 
-def load_json_file(file_path):
+def load_json_file(folder_path, filename):
+    file_path = filepath_today_folder(folder_path, filename)
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)

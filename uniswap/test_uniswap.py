@@ -1,6 +1,6 @@
 import web3
 
-import uniswap
+import uniswap_api
 import utils
 from config_file import *
 from web3 import Web3
@@ -11,7 +11,7 @@ import json
 
 def load_keys_from_file():
 
-    #file_path = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
+    #filename = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
     file_path = "../vault/pkeys.json"
     try:
         with open(file_path, 'r') as file:
@@ -63,5 +63,46 @@ class TestUniswap(unittest.TestCase):
 
 
     def test_pools(self):
-        s = uniswap.retrieve_data_pools()
+        s = uniswap_api.retrieve_data_pools()
         print(s)
+
+    def test_create_pool_list(self):
+        pools = uniswap_api.retrieve_data_pools()
+        pairs_dict, tokens = uniswap_api.create_list_pairs(pools)
+
+        #save pools to json file
+        data_pools = []
+        for k, v in pairs_dict.items():
+
+            pools_list = []
+            for pair in v:
+                pair_dict = {
+                    "id": pair.id,
+                    "tvlEth": pair.tvl_eth,
+                    "feeTier": pair.fee_tier,
+                    "tradingPairSymbol": pair.pair_symbol,
+                    "token0": self._token_to_dict(pair.base),
+                    "token1": self._token_to_dict(pair.quote)
+                }
+                pools_list.append(pair_dict)
+
+            pools_dict = {
+                "tradingPairSymbol": k,
+                "poolsTotal": len(pools_list),
+                "pools": pools_list
+            }
+
+            data_pools.append(pools_dict)
+
+        utils.save_json_to_file(data_pools, utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
+
+    def _token_to_dict(self, token):
+        return {
+            "id": token.id,
+            "symbol": token.symbol,
+            "name": token.name,
+            "decimals": token.decimals,
+            "price": token.price
+        }
+
+

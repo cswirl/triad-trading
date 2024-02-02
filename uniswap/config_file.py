@@ -13,6 +13,6 @@ addressTo = "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2" #// SUSHI
 Contracts = {
         "router": {
             "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-            "abiPath": utils.load_json_file("../abi/router.abi")
+            "abiPath": utils.load_json_file("../abi", "router.abi")
         }
     }
