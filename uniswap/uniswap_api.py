@@ -1,9 +1,10 @@
 # https://thegraph.com/hosted-service/subgraph/uniswap/uniswap-v3
 import requests
 import json
-import utils
 import constants
 import token_pair
+
+from config_file import *
 
 POOLS_CACHE_FILENAME = "uniswap_pools.json"
 TRIAD_JSON_FILENAME = "uniswap_triads.json"
@@ -142,3 +143,8 @@ def create_list_pairs(data_pools):
             pairs_map[pair_symbol] = [pool]
 
     return  pairs_map, tokens_dict
+
+
+def get_network(network="mainnet"):
+    # reserve for later
+    return Networks[network] if network in Networks.keys() else None

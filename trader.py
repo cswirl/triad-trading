@@ -70,17 +70,9 @@ class Trader:
         return True
 
         seedAmount = self.seedFund
-        # swap1 pnl
-        #if self.trade1_flag == 0:  # idle: 0, in-progress: 1, completed:2
-        #    swap1_outputAmount = func_depth_rate("token1_address","token2_address", seedFund)
 
-
-
-        #if self.trade2_flag == 0:  # idle: 0, in-progress: 1, completed:2
-        #   swap2_outputAmount = func_depth_rate("token1_address","token2_address", swap1_outputAmount)
-
-        #if self.trade3_flag == 0:  # idle: 0, in-progress: 1, completed:2
-        #    swap3_outputAmount = func_depth_rate("token1_address","token2_address", swap2_outputAmount)
+        path
+        path = ""
 
         if amount_out_1 == 0:
             amount_out_1 = func_depth_rate("token1_address","token2_address", seedAmount)
