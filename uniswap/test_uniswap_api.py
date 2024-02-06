@@ -2,14 +2,16 @@
 import unittest
 from collections import namedtuple
 
-import web3
+from web3 import Web3
 from web3.exceptions import ContractLogicError
 
 import uniswap_api
-import uniswap_helper
 import utils
 from config_file import *
-from web3 import Web3
+from uniswapV3 import Uniswap
+
+
+
 
 TIER_100 = 100
 TIER_500 = 500
@@ -23,6 +25,7 @@ network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 
+_uniswap = Uniswap(network_config=network, provider=provider)
 
 eth = Web3.to_checksum_address("0x0000000000000000000000000000000000000000")
 weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
@@ -99,9 +102,7 @@ class TestUniswapApi(unittest.TestCase):
 
 
     def _test_quoter_multipool(self):
-
-        quoter_config = network["quoter"]
-        quoter = w3.eth.contract(address=quoter_config["address"], abi=uniswap_helper._load_abi(quoter_config["abiName"]))
+        quoter = _uniswap.quoter
 
         qty = 100
         sqrtPriceLimitX96 = 0
@@ -132,11 +133,7 @@ class TestUniswapApi(unittest.TestCase):
 
 
     def _test_quoter(self, token0, token1, qty, fee = 3000):
-
-
-
-        quoter_config = network["quoter"]
-        quoter = w3.eth.contract(address=quoter_config["address"], abi=uniswap_helper._load_abi(quoter_config["abiName"]))
+        quoter = _uniswap.quoter
 
         qty_to_dec = qty * (10**token0.decimals)
         sqrtPriceLimitX96 = 0

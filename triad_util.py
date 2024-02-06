@@ -1,3 +1,8 @@
+from web3 import Web3
+
+from uniswap import uniswap_api
+from uniswap.token_pair import Token
+from uniswap.uniswapV3 import Uniswap
 
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
@@ -23,14 +28,19 @@ def activate_filter_1():
 
     return surface_dict
 
-def get_depth_rate(address_from, address_to, amount_in):
+def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     _sqrtPriceLimitX96 = sqrtPriceLimitX96
     _gas_fee = GAS_FEE
 
-    # return result from blockchain quoter
-    amount = 1
+    token0 = uniswap_api.get_token(token0_symbol)
+    token1 = uniswap_api.get_token(token1_symbol)
 
-    return amount
+    amount_out = uniswap.quote_price(token0, token1, amount_in)
+
+    return amount_out
 
 
 
+network = uniswap_api.get_network("mainnet")
+provider = Web3.HTTPProvider(network["provider"])
+uniswap = Uniswap(network_config=network, provider=provider)
