@@ -1,8 +1,9 @@
 # https://thegraph.com/hosted-service/subgraph/uniswap/uniswap-v3
 import requests
 import json
+from web3 import Web3
 
-from uniswap import constants, token_pair
+from uniswap import constants, token_pair, utils
 from uniswap.config_file import *
 
 POOLS_CACHE_FILENAME = "uniswap_pools.json"
@@ -92,19 +93,19 @@ def create_list_pairs(data_pools:[]):
     for pool in pools:
         token_0 = pool["token0"]
         token_0_symbol = token_0["symbol"]
-        token_0_id = token_0["id"]
+        token_0_id = Web3.to_checksum_address(token_0["id"])
         token_0_name = token_0["name"]
         token_0_decimals = int(token_0["decimals"])
 
         token_1 = pool["token1"]
         token_1_symbol = token_1["symbol"]
-        token_1_id = token_1["id"]
+        token_1_id = Web3.to_checksum_address(token_1["id"])
         token_1_name = token_1["name"]
         token_1_decimals = int(token_1["decimals"])
 
 
         # TradingPair object
-        id = pool["id"]
+        id = Web3.to_checksum_address(pool["id"])
         tvl_eth = pool["totalValueLockedETH"]
         fee_tier = pool["feeTier"]
         token_0_price = float(pool["token0Price"])

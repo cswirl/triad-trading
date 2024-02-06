@@ -5,7 +5,7 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError
 from web3.types import Nonce
 
-import uniswap_helper
+from uniswap import uniswap_helper
 
 
 class Uniswap:
@@ -40,7 +40,7 @@ class Uniswap:
 
         self.version = 3
         self.w3 = Web3(provider)
-        self.last_nonce: Nonce = self.w3.eth.get_transaction_count(self.address)
+        #self.last_nonce: Nonce = self.w3.eth.get_transaction_count(self.address)
 
         # TODO: Write tests for slippage
         self.default_slippage = default_slippage    # not used
@@ -103,7 +103,7 @@ class Uniswap:
                 sqrtPriceLimitX96
             ).call()
 
-            print(f"quoted price from quoter: {price / 10 ** token1.decimals}")
+            #print(f"quoted price from quoter: {price / 10 ** token1.decimals}")
 
             return price / 10 ** token1.decimals
 

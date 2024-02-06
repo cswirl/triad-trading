@@ -4,20 +4,21 @@ import uuid
 from datetime import datetime
 
 import triad_util
-import utils
+from uniswap import utils
 
 from uniswap.constants import *
 
 
 
-DEPTH_MIN_RATE = 1.5
+DEPTH_MIN_RATE = 0
 
 ALL_TRADE_TIMEOUT = 60 * 60             # 60 * 60 = 1 hour
 TRADE_TIMEOUT = 60 * 60
 
 # RATE LIMIT WILL DICTATE THE SLEEP TIME
 # FOR TRADE OBJECT TO QUERY THE NETWORK
-TOTAL_ACTIVE_TRADERS = 33 * 10          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
+SECONDS = 30    # will control the hunting sleep in seconds
+TOTAL_ACTIVE_TRADERS = 33 * SECONDS          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
 RATE_LIMIT_PER_SECOND = 33
 DEFAULT_SLEEP_TIME = 0.3
 MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value

@@ -35,7 +35,7 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     token0 = uniswap_api.get_token(token0_symbol)
     token1 = uniswap_api.get_token(token1_symbol)
 
-    amount_out = uniswap.quote_price(token0, token1, amount_in)
+    amount_out = _uniswap.quote_price(token0, token1, amount_in)
 
     return amount_out
 
@@ -43,4 +43,4 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
 
 network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
-uniswap = Uniswap(network_config=network, provider=provider)
+_uniswap = Uniswap(network_config=network, provider=provider)

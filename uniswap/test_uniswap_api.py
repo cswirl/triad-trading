@@ -5,10 +5,9 @@ from collections import namedtuple
 from web3 import Web3
 from web3.exceptions import ContractLogicError
 
-import uniswap_api
-import utils
-from config_file import *
-from uniswapV3 import Uniswap
+from uniswap import utils, uniswap_api, uniswap_helper
+from uniswap.config_file import *
+from uniswap.uniswapV3 import Uniswap
 
 
 
