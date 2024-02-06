@@ -1,7 +1,9 @@
 
 uniswap_surface_rates.json
 
-vault/
+uniswap/vault/
+uniswap/data/
+
 trade_results/
 logs/
 data/

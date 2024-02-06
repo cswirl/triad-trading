@@ -3,6 +3,7 @@ import requests
 import json
 import constants
 import token_pair
+import utils
 
 from config_file import *
 
@@ -91,38 +92,39 @@ def create_list_pairs(data_pools):
     tokens_dict = {}
 
     for pool in pools:
-        token_0_symbol = pool["token0"]["symbol"]
-        token_0_id = pool["token0"]["id"]
-        token_0_name = pool["token0"]["name"]
-        token_0_decimals = int(pool["token0"]["decimals"])
-        token_0_price = float(pool["token0Price"])
+        token_0 = pool["token0"]
+        token_0_symbol = token_0["symbol"]
+        token_0_id = token_0["id"]
+        token_0_name = token_0["name"]
+        token_0_decimals = int(token_0["decimals"])
 
-        token_1_symbol = pool["token1"]["symbol"]
+        token_1 = pool["token1"]
+        token_1_symbol = token_1["symbol"]
+        token_1_id = token_1["id"]
+        token_1_name = token_1["name"]
+        token_1_decimals = int(token_1["decimals"])
 
-        token_1_id = pool["token1"]["id"]
-        token_1_name = pool["token1"]["name"]
-        token_1_decimals = int(pool["token1"]["decimals"])
-        token_1_price = float(pool["token1Price"])
 
         # TradingPair object
         id = pool["id"]
         tvl_eth = pool["totalValueLockedETH"]
         fee_tier = pool["feeTier"]
+        token_0_price = float(pool["token0Price"])
+        token_1_price = float(pool["token1Price"])
+
         pair_symbol = token_0_symbol + constants.PAIRS_DELIMITER + token_1_symbol
         base_token = token_pair.Token(
                                 token_0_id
                                ,token_0_symbol
                                ,token_0_name
                                ,token_0_decimals
-                               ,token_0_price
                             )
 
         quote_token = token_pair.Token(
                                 token_1_id,
                                 token_1_symbol,
                                 token_1_name,
-                                token_1_decimals,
-                                token_1_price
+                                token_1_decimals
                             )
 
         tokens_dict[token_0_symbol] = base_token
@@ -131,11 +133,19 @@ def create_list_pairs(data_pools):
         # Add to key-value pair
         # Duplicate handling - Shaun's algorithm is preserving the first entry
         #     - overwrite the previous entry
-        #   X - preserve the first entry
-        # if pair_symbol not in pairs_map.keys():
-        #     pairs_map[pair_symbol] = token_pair.TradingPair(id, pair_symbol, base_token, quote_token)
+        #     - preserve the first entry
+        #   X - using a list of pools for each Trading Pair
 
-        pool = token_pair.TradingPair(id, tvl_eth, fee_tier, pair_symbol, base_token, quote_token)
+        pool = token_pair.TradingPair(
+            id,
+            tvl_eth,
+            fee_tier,
+            token_0_price,
+            token_1_price,
+            pair_symbol,
+            base_token,
+            quote_token
+        )
 
         if pair_symbol in pairs_map.keys():
             pairs_map[pair_symbol].append(pool)
@@ -148,3 +158,20 @@ def create_list_pairs(data_pools):
 def get_network(network="mainnet"):
     # reserve for later
     return Networks[network] if network in Networks.keys() else None
+
+
+def get_token(symbol):
+    """
+        Find the Token object instance in the TOKENS_DICT
+
+        :param symbol (str): unique symbol
+        :return token (Token or None): Token instance
+        """
+    token = (symbol in TOKENS_DICT and TOKENS_DICT[symbol]) or None
+    if token is None:
+        print(f"Key '{symbol}' does not exist in the Tokens dictionary list.")
+
+    return token
+
+POOLS = retrieve_data_pools(cache=True)
+PAIRS_DICT, TOKENS_DICT = create_list_pairs(POOLS)

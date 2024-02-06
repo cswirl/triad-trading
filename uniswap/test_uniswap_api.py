@@ -7,6 +7,7 @@ from web3.exceptions import ContractLogicError
 
 import uniswap_api
 import uniswap_helper
+import utils
 from config_file import *
 from web3 import Web3
 
@@ -66,7 +67,7 @@ def path_builder(fee):
 
 
 
-class TestUniswap(unittest.TestCase):
+class TestUniswapApi(unittest.TestCase):
 
     def test_quoter_compare(self):
         print("============ QUOTER COMPARE ===============")
@@ -100,7 +101,7 @@ class TestUniswap(unittest.TestCase):
     def _test_quoter_multipool(self):
 
         quoter_config = network["quoter"]
-        quoter = w3.eth.contract(address=quoter_config["address"], abi=quoter_config["abi"])
+        quoter = w3.eth.contract(address=quoter_config["address"], abi=uniswap_helper._load_abi(quoter_config["abiName"]))
 
         qty = 100
         sqrtPriceLimitX96 = 0
@@ -132,8 +133,10 @@ class TestUniswap(unittest.TestCase):
 
     def _test_quoter(self, token0, token1, qty, fee = 3000):
 
+
+
         quoter_config = network["quoter"]
-        quoter = w3.eth.contract(address=quoter_config["address"], abi=quoter_config["abi"])
+        quoter = w3.eth.contract(address=quoter_config["address"], abi=uniswap_helper._load_abi(quoter_config["abiName"]))
 
         qty_to_dec = qty * (10**token0.decimals)
         sqrtPriceLimitX96 = 0
@@ -191,7 +194,7 @@ class TestUniswap(unittest.TestCase):
 
     def test_contract(self):
         router = Contracts["router"]
-        myContract = w3.eth.contract(address=router["address"], abi=router["abiPath"])
+        myContract = w3.eth.contract(address=router["address"], abi=uniswap_helper._load_abi(router["abiName"]))
 
         print(myContract)
 
@@ -201,7 +204,7 @@ class TestUniswap(unittest.TestCase):
         print(s)
 
     def test_create_pool_list(self):
-        pools = uniswap_api.retrieve_data_pools()
+        pools = uniswap_api.retrieve_data_pools(cache=False)
         pairs_dict, tokens = uniswap_api.create_list_pairs(pools)
 
         #save pools to json file
@@ -214,9 +217,11 @@ class TestUniswap(unittest.TestCase):
                     "id": pair.id,
                     "tvlEth": pair.tvl_eth,
                     "feeTier": pair.fee_tier,
+                    "token0Price": pair.token0_price,
+                    "token1Price": pair.token1_price,
                     "tradingPairSymbol": pair.pair_symbol,
-                    "token0": self._token_to_dict(pair.base),
-                    "token1": self._token_to_dict(pair.quote)
+                    "token0": self._token_to_dict(pair.token0),
+                    "token1": self._token_to_dict(pair.token1)
                 }
                 pools_list.append(pair_dict)
 
@@ -231,13 +236,26 @@ class TestUniswap(unittest.TestCase):
         file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
         utils.save_json_to_file(data_pools, file_path)
 
+        # save tokens as json file
+        file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_tokens.json")
+        utils.save_json_to_file(tokens, file_path)
+
+
     def _token_to_dict(self, token):
         return {
             "id": token.id,
             "symbol": token.symbol,
             "name": token.name,
-            "decimals": token.decimals,
-            "price": token.price
+            "decimals": token.decimals
         }
+
+    def test_get_token(self):
+        symbol = "ez-yvCurve-IronBank"
+
+        result = uniswap_api.get_token(symbol)
+        if result:
+            print(f"'{symbol}' symbol found: {result}")
+        else:
+            print(f"No symbol '{symbol}' exists in the Tokens list")
 
 
