@@ -28,7 +28,7 @@ MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE
 NO_FUNDS_SLEEP_TIME = 60
 
 class Trader:
-    def __init__(self, calculate_seed_fund = None, **kwargs):
+    def __init__(self, func_depth_rate, calculate_seed_fund = None, **kwargs):
         self.id = uuid.uuid4()
         self.pathway_triplet = kwargs["pathway_triplet"]    # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway = kwargs["pathway"]
@@ -41,6 +41,8 @@ class Trader:
         self.print_status_flag = True
         self.lifespan_logs = []
         self.trade_logs = []
+
+        self.get_depth_rate = func_depth_rate
 
         self.logger(f"Greetings from {str(self)}")
 
@@ -63,7 +65,8 @@ class Trader:
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
         self.logger("Changing state: 'Hunting'")
         while True:
-            good_depth = self.inquire_depth(triad_util.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
+            good_depth = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
+
             sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
             self.logger(f"sleep time {sleep_time}")
             await asyncio.sleep(float(sleep_time))
@@ -82,20 +85,20 @@ class Trader:
             amount_out_1 = func_depth_rate(token1,token2, seed_amount)
 
             # todo: log result in text or json
-            self.logger(f"Swap 1 : Swapping {seed_amount} {token1} to {amount_out_1} {token2}")
+            self.logger(f"Quote 1 : {seed_amount} {token1} to {amount_out_1} {token2}")
 
 
         if amount_out_2 == 0:
             amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
 
             # todo: log result in text or json
-            self.logger(f"Swap 2 : Swapping {amount_out_1} {token2} to {amount_out_2} {token3}")
+            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
 
         if amount_out_3 == 0:
             amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
 
             # todo: log result in text or json
-            self.logger(f"Swap 3 : Swapping {amount_out_2} {token3} to {amount_out_3} {token1}")
+            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
 
 
         # calculate pnl and pnl percentage
@@ -103,6 +106,21 @@ class Trader:
         profit_loss_perc = seed_amount and profit_loss / float(seed_amount) * 100
 
         if profit_loss_perc >= DEPTH_MIN_RATE:
+            self.logger("===================================Profit Found")
+            self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
+            self.logger(f"PnL : {profit_loss}")
+            self.logger(f"PnL % : {profit_loss_perc}")
+
+
+            result_dict = {
+                "id": str(self),
+                "pnl": profit_loss,
+                "pnlPerc": profit_loss_perc,
+                "trade_logs": self.lifespan_logs
+            }
+            self.save_result_json(result_dict)
+
+
             return True
 
         return False
@@ -112,7 +130,7 @@ class Trader:
         seedFund = allocate_seed_fund("token address or symbol")
         return seedFund
 
-    async def get_seedFund(self):
+    async def get_fund_from_wallet(self):
 
         seedFund = self.allocate_seed_fund(lambda x: 100)
         self.seedFund = seedFund
@@ -134,12 +152,17 @@ class Trader:
 
             if self.pathway_root_symbol not in STARTING_TOKENS:
                 self.logger(f"'{self.pathway_root_symbol}' is not in STARTING TOKEN")
-                # better to send to a central log for study
+                # this will continue the trading execution loop and continue logging profitable data
                 return True
 
 
-            seedFund = await self.get_seedFund()
+            # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
+            # - and then return False after enough attempts
+            seedFund = await self.get_fund_from_wallet()
+            # Returning false will break the outer trading execution loop
             if seedFund is None: return False
+
+
 
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)

@@ -8,7 +8,9 @@ import triad_util
 class TestTrader(unittest.TestCase):
 
     def test_trader_execute_trade(self):
+        #triad_util.get_depth_rate,
         trader = Trader(
+            self._test_depth_rate,
             calculate_seed_fund=triad_util.calculate_seed_fund,
             pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'],
             pathway_triplet = "USDC_WETH_APE")
@@ -30,6 +32,6 @@ class TestTrader(unittest.TestCase):
         await asyncio.gather(*coroutine_list)
 
 
-    def test_trader_wakeup(self):
-        pass
+    def _test_depth_rate(self, token0_symbol, token1_symbol, amount_in):
+        return amount_in * 1.3 # give 30% profit
 
