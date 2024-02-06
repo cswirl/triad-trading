@@ -1,13 +1,13 @@
 import asyncio
 import unittest
 
-from trader import *
+from trader import Trader
 
 
 class TestTrader(unittest.TestCase):
 
     def test_trader_execute_trade(self):
-        trader = Trader(['USDC_WETH', 'UST_WETH', 'USDC_UST'])
+        trader = Trader(pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'], pathway_triplet = "USDC_WETH_APE")
         asyncio.run(trader.start_trading())
 
     def test_multiple_trader_instance(self):

@@ -1,11 +1,9 @@
 # https://thegraph.com/hosted-service/subgraph/uniswap/uniswap-v3
 import requests
 import json
-import constants
-import token_pair
-import utils
 
-from config_file import *
+from uniswap import constants, token_pair
+from uniswap.config_file import *
 
 POOLS_CACHE_FILENAME = "uniswap_pools.json"
 TRIAD_JSON_FILENAME = "uniswap_triads.json"
@@ -73,7 +71,7 @@ def fetch_uniswap_data_pools():
 
     return pools
 
-def create_list_pairs(data_pools):
+def create_list_pairs(data_pools:[]):
     """
     Create a dictionary of TradingPair objects from data pools
 
