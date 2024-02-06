@@ -2,15 +2,18 @@ import asyncio
 import time
 import uuid
 from datetime import datetime
+from typing import Optional
 
 import triad_util
 from uniswap import utils
 
 from uniswap.constants import *
-
+from uniswap.config_file import *
 
 
 DEPTH_MIN_RATE = 0
+
+USD_SEED_AMOUNT = 200   # The amount in US dollar to be used for price quotation
 
 ALL_TRADE_TIMEOUT = 60 * 60             # 60 * 60 = 1 hour
 TRADE_TIMEOUT = 60 * 60
@@ -25,11 +28,12 @@ MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE
 NO_FUNDS_SLEEP_TIME = 60
 
 class Trader:
-    def __init__(self, **kwargs):
+    def __init__(self, calculate_seed_fund = None, **kwargs):
         self.id = uuid.uuid4()
         self.pathway_triplet = kwargs["pathway_triplet"]    # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway = kwargs["pathway"]
-        self.seedFund = 1
+        self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
+        self.seedFund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
         self.flags = [0,0,0]
         self.trade1_flag = 0
         self.trade2_flag = 0
@@ -127,6 +131,12 @@ class Trader:
             # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
             await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
+
+            if self.pathway_root_symbol not in STARTING_TOKENS:
+                self.logger(f"'{self.pathway_root_symbol}' is not in STARTING TOKEN")
+                # better to send to a central log for study
+                return True
+
 
             seedFund = await self.get_seedFund()
             if seedFund is None: return False

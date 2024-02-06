@@ -86,7 +86,7 @@ class Uniswap:
         #     self.w3, abi_name="uniswap-v3/multicall", address=multicall2_addr
         # )
 
-    def quote_price(self, token0, token1, qty, fee=3000):
+    def quote_price_input(self, token0, token1, qty, fee=3000):
         qty_to_dec = qty * (10 ** token0.decimals)
         sqrtPriceLimitX96 = 0
 

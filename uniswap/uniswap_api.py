@@ -161,11 +161,11 @@ def get_network(network="mainnet"):
 
 def get_token(symbol):
     """
-        Find the Token object instance in the TOKENS_DICT
+    Find the Token object instance in the TOKENS_DICT
 
-        :param symbol (str): unique symbol
-        :return token (Token or None): Token instance
-        """
+    :param symbol (str): unique symbol
+    :return token (Token or None): Token instance
+    """
     token = (symbol in TOKENS_DICT and TOKENS_DICT[symbol]) or None
     if token is None:
         print(f"Key '{symbol}' does not exist in the Tokens dictionary list.")

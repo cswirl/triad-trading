@@ -11,7 +11,9 @@ QUOTER_ABI_FILE_PATH = "assets/quoter.abi"
 ROUTER_ADDRESS = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 ROUTER_ABI_FILE_PATH = "assets/router.abi"
 
-STABLE_COINS = {"USDT", "USDC"}
+STABLE_COINS = {"USDT", "USDC", "DAI", "FRAX"}
+
+STARTING_TOKENS = {"WETH", "WBTC", "UNI", *STABLE_COINS} # ROUGH DRAFT
 
 
 Contracts = {
@@ -23,7 +25,7 @@ Contracts = {
 
 #Tick spacing - value is Set data structure - use contract address?
 TickSpacing = {
-    "10": {"USDT", "USDC"},        # stable
+    "10": STABLE_COINS,        # stable
     "60": {"WETH", "token2"},    # medium
 
 }

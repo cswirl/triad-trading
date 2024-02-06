@@ -3,6 +3,7 @@ from web3 import Web3
 from uniswap import uniswap_api
 from uniswap.token_pair import Token
 from uniswap.uniswapV3 import Uniswap
+from uniswap.config_file import *
 
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
@@ -35,7 +36,29 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     token0 = uniswap_api.get_token(token0_symbol)
     token1 = uniswap_api.get_token(token1_symbol)
 
-    amount_out = _uniswap.quote_price(token0, token1, amount_in)
+    amount_out = _uniswap.quote_price_input(token0, token1, amount_in)
+
+    return amount_out
+
+def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
+
+    stable_coin = uniswap_api.get_token(stable_coin)
+    token1 = uniswap_api.get_token(symbol)
+
+    usd_amount_in = usd_amount
+    fee = 3000
+
+    is_stables = symbol in STABLE_COINS
+    if is_stables: return usd_amount_in
+
+    # None if no pool of a given pair - rare tokens
+    amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
+
+    if amount_out is None:
+        # try using path: usd -> weth -> rare token
+        # but this is to be solved next since we are not interested to start trade with rare tokens
+        # for now we use hard-coded units of 500 for rare tokens
+        return 500
 
     return amount_out
 
