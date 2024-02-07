@@ -233,6 +233,29 @@ def _recreate_triad_structure(pools_data):
 
     return structured_pairs
 
+# #####################################################
+#     Utilities
+# #####################################################
+def find_pair_object(pair_symbol):
+    """
+    Find the TradingPair object instance in the pairs_map
+
+    :param pair_symbol (str): unique key
+    :return pair_obj (TradingPair or None): TradingPair instance
+    """
+    try:
+        pair_obj = (pair_symbol in PAIRS_DICT and PAIRS_DICT[pair_symbol]) or None
+        if pair_obj or len(pair_obj) > 1:
+            # todo: get the pool with greatest amount of tvl eth?
+            #return max(pair_obj, key=lambda x : x.tvl_eth)
+            return pair_obj[0] # using shaun algorithm where it uses the first pool found
+        else:
+            print(f"Key '{pair_symbol}' does not exist in the list of Trading Pairs.")
+
+    except KeyError as e:
+        print(f"KeyError: {e}. Key '{pair_symbol}' does not exist in the dictionary.")
+
+    return None
 
 def get_network(network="mainnet"):
     # reserve for later

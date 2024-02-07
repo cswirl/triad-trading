@@ -1,0 +1,1 @@
+MIN_SURFACE_RATE = 1.5
