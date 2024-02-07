@@ -196,7 +196,7 @@ class TestUniswapApi(unittest.TestCase):
 
 
     def test_pools(self):
-        s = uniswap_api.retrieve_data_pools()
+        s = uniswap_api.retrieve_data_pools(cache=True)
         print(s)
 
     def test_create_pool_list(self):

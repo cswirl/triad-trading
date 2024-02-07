@@ -3,6 +3,7 @@ import requests
 import json
 from web3 import Web3
 
+import func_triangular_arb
 from uniswap import constants, token_pair, utils
 from uniswap.config_file import *
 
@@ -47,16 +48,16 @@ def retrieve_data_pools(cache=True):
         print(f"getting data pools from local cache...")
         # if no local cache found then pull data from a data source
         file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
-        pools = utils.load_json_file(file_path) or fetch_uniswap_data_pools() or None
+        pools = utils.load_json_file(file_path) or _fetch_uniswap_data_pools() or None
     else:
-        pools = fetch_uniswap_data_pools()
+        pools = _fetch_uniswap_data_pools()
 
     if pools:
         print(f'There are {len(pools)} trading pairs in the list.')
 
     return pools
 
-def fetch_uniswap_data_pools():
+def _fetch_uniswap_data_pools():
     """internal use
     Fetch uniswap data pools and save it to local cache
 
@@ -154,6 +155,44 @@ def create_list_pairs(data_pools:[]):
     return  pairs_map, tokens_dict
 
 
+def retrieve_structured_pairs(data_pools, cache=True):
+    """
+    Retrieve Triangular Structure Pairs - uses the algorithm created by shaun. see func_triangular_arb
+
+    Auto-saves the data to a local file in json format.
+
+    :param data_pools (json): a dictionary of the original json data from The Graph.
+
+    :return structured_pairs (list<dict>):
+        list of triad pairs. each item contains the triangular trading pairs with sufficient information
+        containing contract id, relative price, decimals, etc. see "data/uniswap_triads.json" file
+    """
+    if cache:
+        print(f"getting triad structures from local cache")
+        file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, TRIAD_JSON_FILENAME)
+        structured_pairs = utils.load_json_file(file_path)
+        # force re-create triad pairs if no local file exists
+        if not structured_pairs:
+            print(f"No triad structures from local cache")
+            structured_pairs = _recreate_triad_structure(data_pools)
+    else:
+        structured_pairs = _recreate_triad_structure(data_pools)
+
+    return structured_pairs
+
+def _recreate_triad_structure(pools_data):
+    """internal use"""
+    print("re-creating triad structures . . .")
+    structured_pairs = func_triangular_arb.structure_trading_pairs(pools_data, limit=constants.LIMIT)
+
+    if structured_pairs:
+        file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, TRIAD_JSON_FILENAME)
+        utils.save_json_to_file(file_path)
+
+    return structured_pairs
+
+
+
 def get_network(network="mainnet"):
     # reserve for later
     return Networks[network] if network in Networks.keys() else None
@@ -171,6 +210,9 @@ def get_token(symbol):
         print(f"Key '{symbol}' does not exist in the Tokens dictionary list.")
 
     return token
+
+
+
 
 POOLS = retrieve_data_pools(cache=True)
 PAIRS_DICT, TOKENS_DICT = create_list_pairs(POOLS)
