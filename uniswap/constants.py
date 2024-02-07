@@ -5,4 +5,8 @@ MIN_SURFACE_RATE = 1.5
 LIMIT = 500                                 # change values to lower than the cache length will cause soft error (not harmful)
 
 
+#------------------- FILE NAME AND PATHS ------------------------------
 
+POOLS_CACHE_FILENAME = "uniswap_pools.json"
+TRIAD_JSON_FILENAME = "uniswap_triads.json"
+UNISWAP_SURFACE_RATES_FILENAME = "uniswap_surface_rates.json"

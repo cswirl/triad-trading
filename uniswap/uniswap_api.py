@@ -4,12 +4,9 @@ import json
 from web3 import Web3
 
 import func_triangular_arb
-from uniswap import constants, token_pair, utils
+from uniswap import token_pair, utils
 from uniswap.config_file import *
-
-POOLS_CACHE_FILENAME = "uniswap_pools.json"
-TRIAD_JSON_FILENAME = "uniswap_triads.json"
-UNISWAP_SURFACE_RATES_FILENAME = "uniswap_surface_rates.json"
+from uniswap.constants import *
 
 
 
@@ -73,7 +70,7 @@ def _fetch_uniswap_data_pools():
 
     return pools
 
-def create_list_pairs(data_pools:[]):
+def create_tokens_and_trading_pairs(data_pools:[]):
     """
     Create a dictionary of TradingPair objects from data pools
 
@@ -86,7 +83,7 @@ def create_list_pairs(data_pools:[]):
 
     print("creating a list of trading pairs from data pools. . .")
 
-    pools = data_pools[:constants.LIMIT] if constants.LIMIT <= len(data_pools) else data_pools      # will get an error if the limit is more than the length of the list
+    pools = data_pools[:LIMIT] if LIMIT <= len(data_pools) else data_pools      # will get an error if the limit is more than the length of the list
 
     pairs_map = {}
     tokens_dict = {}
@@ -112,7 +109,7 @@ def create_list_pairs(data_pools:[]):
         token_0_price = float(pool["token0Price"])
         token_1_price = float(pool["token1Price"])
 
-        pair_symbol = token_0_symbol + constants.PAIRS_DELIMITER + token_1_symbol
+        pair_symbol = token_0_symbol + PAIRS_DELIMITER + token_1_symbol
         base_token = token_pair.Token(
                                 token_0_id
                                ,token_0_symbol
@@ -152,8 +149,54 @@ def create_list_pairs(data_pools:[]):
         else:
             pairs_map[pair_symbol] = [pool]
 
+
+    #save to json file for study
+    # save Tokens dict
+    file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_tokens.json")
+    utils.save_json_to_file(tokens_dict, file_path)
+
+    # save Trading Pairs
+    _save_trading_pairs(pairs_map)
+
     return  pairs_map, tokens_dict
 
+def _save_trading_pairs(pairs_dict_list: []):
+    # save pools to json file
+    data_pools = []
+    for k, v in pairs_dict_list.items():
+
+        pools_list = []
+        for pair in v:
+            pair_dict = {
+                "id": pair.id,
+                "tvlEth": pair.tvl_eth,
+                "feeTier": pair.fee_tier,
+                "token0Price": pair.token0_price,
+                "token1Price": pair.token1_price,
+                "tradingPairSymbol": pair.pair_symbol,
+                "token0": _token_to_dict(pair.token0),
+                "token1": _token_to_dict(pair.token1)
+            }
+            pools_list.append(pair_dict)
+
+        pools_dict = {
+            "tradingPairSymbol": k,
+            "poolsTotal": len(pools_list),
+            "pools": pools_list
+        }
+
+        data_pools.append(pools_dict)
+
+    file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
+    utils.save_json_to_file(data_pools, file_path)
+
+def _token_to_dict(token):
+    return {
+        "id": token.id,
+        "symbol": token.symbol,
+        "name": token.name,
+        "decimals": token.decimals
+    }
 
 def retrieve_structured_pairs(data_pools, cache=True):
     """
@@ -183,14 +226,13 @@ def retrieve_structured_pairs(data_pools, cache=True):
 def _recreate_triad_structure(pools_data):
     """internal use"""
     print("re-creating triad structures . . .")
-    structured_pairs = func_triangular_arb.structure_trading_pairs(pools_data, limit=constants.LIMIT)
+    structured_pairs = func_triangular_arb.structure_trading_pairs(pools_data, limit=LIMIT)
 
     if structured_pairs:
         file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, TRIAD_JSON_FILENAME)
         utils.save_json_to_file(file_path)
 
     return structured_pairs
-
 
 
 def get_network(network="mainnet"):
@@ -212,7 +254,7 @@ def get_token(symbol):
     return token
 
 
-
+#-----------------------------------------------------------------
 
 POOLS = retrieve_data_pools(cache=True)
-PAIRS_DICT, TOKENS_DICT = create_list_pairs(POOLS)
+PAIRS_DICT, TOKENS_DICT = create_tokens_and_trading_pairs(POOLS)

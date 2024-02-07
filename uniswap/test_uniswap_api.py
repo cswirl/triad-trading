@@ -200,50 +200,13 @@ class TestUniswapApi(unittest.TestCase):
         print(s)
 
     def test_create_pool_list(self):
-        pools = uniswap_api.retrieve_data_pools(cache=False)
-        pairs_dict, tokens = uniswap_api.create_list_pairs(pools)
-
-        #save pools to json file
-        data_pools = []
-        for k, v in pairs_dict.items():
-
-            pools_list = []
-            for pair in v:
-                pair_dict = {
-                    "id": pair.id,
-                    "tvlEth": pair.tvl_eth,
-                    "feeTier": pair.fee_tier,
-                    "token0Price": pair.token0_price,
-                    "token1Price": pair.token1_price,
-                    "tradingPairSymbol": pair.pair_symbol,
-                    "token0": self._token_to_dict(pair.token0),
-                    "token1": self._token_to_dict(pair.token1)
-                }
-                pools_list.append(pair_dict)
-
-            pools_dict = {
-                "tradingPairSymbol": k,
-                "poolsTotal": len(pools_list),
-                "pools": pools_list
-            }
-
-            data_pools.append(pools_dict)
-
-        file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_data_pools.json")
-        utils.save_json_to_file(data_pools, file_path)
-
-        # save tokens as json file
-        file_path = utils.filepath_today_folder(utils.DATA_FOLDER_PATH, "uniswap_tokens.json")
-        utils.save_json_to_file(tokens, file_path)
+        pools = uniswap_api.POOLS
+        pairs_dict = uniswap_api.PAIRS_DICT
+        tokens = uniswap_api.TOKENS_DICT
 
 
-    def _token_to_dict(self, token):
-        return {
-            "id": token.id,
-            "symbol": token.symbol,
-            "name": token.name,
-            "decimals": token.decimals
-        }
+
+
 
     def test_get_token(self):
         symbol = "ez-yvCurve-IronBank"
