@@ -115,7 +115,7 @@ class Trader:
         seedFund = allocate_seed_fund("token address or symbol")
         return seedFund
 
-    async def get_fund_from_wallet(self):
+    async def ask_for_funding(self):
 
         seedFund = self.allocate_seed_fund(lambda x: 100)
         self.seedFund = seedFund
@@ -143,7 +143,7 @@ class Trader:
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
-            seedFund = await self.get_fund_from_wallet()
+            seedFund = await self.ask_for_funding()
             # Returning false will break the outer trading execution loop
             if seedFund is None: return False
 

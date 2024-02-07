@@ -156,7 +156,7 @@ class Pathway:
 
         triad_pair_symbols_copy = list(self.triad_pairs_symbols)
 
-        # root_pair example: USDT_BTC which is USDT --> BTC
+        # root_pair example: USDT_BTC read left-to-right which is USDT --> BTC
         starting_symbol, starting_symbol_destination = self.root_pair.split(ROOT_PAIRS_DELIMITER)
 
         # find TradingPair instance for trade 1
