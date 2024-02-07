@@ -33,5 +33,5 @@ class TestTrader(unittest.TestCase):
 
 
     def _test_depth_rate(self, token0_symbol, token1_symbol, amount_in):
-        return amount_in * 1.3 # give 30% profit
+        return amount_in * 1.03 # give 3% profit each trade - accumulates
 

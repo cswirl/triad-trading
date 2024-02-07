@@ -55,6 +55,7 @@ def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
     amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
 
     if amount_out is None:
+        #todo: calculate_seed_fund
         # try using path: usd -> weth -> rare token
         # but this is to be solved next since we are not interested to start trade with rare tokens
         # for now we use hard-coded units of 500 for rare tokens

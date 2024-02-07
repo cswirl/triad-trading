@@ -3,9 +3,9 @@ import pickle
 import os
 from datetime import datetime
 
-TRADE_RESULT_FOLDER_PATH = '../trade_results'
+TRADE_RESULT_FOLDER_PATH = 'trade_results'
 DATA_FOLDER_PATH = 'data'
-LOGS_FOLDER_PATH = '../logs'
+LOGS_FOLDER_PATH = 'logs'
 
 # """
 #     Save to File

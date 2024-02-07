@@ -20,7 +20,7 @@ TRADE_TIMEOUT = 60 * 60
 
 # RATE LIMIT WILL DICTATE THE SLEEP TIME
 # FOR TRADE OBJECT TO QUERY THE NETWORK
-SECONDS = 30    # will control the hunting sleep in seconds
+SECONDS = 10    # will control the hunting sleep in seconds
 TOTAL_ACTIVE_TRADERS = 33 * SECONDS          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
 RATE_LIMIT_PER_SECOND = 33
 DEFAULT_SLEEP_TIME = 0.3
@@ -71,7 +71,6 @@ class Trader:
             self.logger(f"sleep time {sleep_time}")
             await asyncio.sleep(float(sleep_time))
             if good_depth:
-                self.logger("Good Depth found.")
                 self.logger("Changing State: 'Trading'")
                 break
 
@@ -84,21 +83,11 @@ class Trader:
         if amount_out_1 == 0:
             amount_out_1 = func_depth_rate(token1,token2, seed_amount)
 
-            # todo: log result in text or json
-            self.logger(f"Quote 1 : {seed_amount} {token1} to {amount_out_1} {token2}")
-
-
         if amount_out_2 == 0:
             amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
 
-            # todo: log result in text or json
-            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
-
         if amount_out_3 == 0:
             amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
-
-            # todo: log result in text or json
-            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
 
 
         # calculate pnl and pnl percentage
@@ -106,20 +95,16 @@ class Trader:
         profit_loss_perc = seed_amount and profit_loss / float(seed_amount) * 100
 
         if profit_loss_perc >= DEPTH_MIN_RATE:
-            self.logger("===================================Profit Found")
+            self.logger("========Profit Found")
+            self.logger(f"Quote 1 : {seed_amount} {token1} to {amount_out_1} {token2}")
+            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
+            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
+            self.logger("--------------------")
             self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
             self.logger(f"PnL : {profit_loss}")
             self.logger(f"PnL % : {profit_loss_perc}")
 
-
-            result_dict = {
-                "id": str(self),
-                "pnl": profit_loss,
-                "pnlPerc": profit_loss_perc,
-                "trade_logs": self.lifespan_logs
-            }
-            self.save_result_json(result_dict)
-
+            self.save_logs()
 
             return True
 
@@ -182,6 +167,9 @@ class Trader:
             self.logger(f"PnL : {profit_loss}")
             self.logger(f"PnL % : {profit_loss_perc}")
             self.logger(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger("#####################################################################")
+            self.logger(f"^^^^^^ TRIANGULAR TRADE COMPLETE ^^^^^^ {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+            self.logger("#####################################################################")
 
             result_dict = {
                 "id": str(self),
@@ -189,7 +177,9 @@ class Trader:
                 "pnlPerc": profit_loss_perc,
                 "trade_logs": self.lifespan_logs
             }
+
             self.save_result_json(result_dict)
+
         except asyncio.TimeoutError:
             self.logger("The asynchronous function timed out.")
             self.print_status_flag = False
@@ -227,7 +217,7 @@ class Trader:
         self.trade2_flag = 1
         self.logger("========================executing trade 2")
 
-        await asyncio.sleep(TRADE_TIMEOUT - 7)
+        await asyncio.sleep(4)
 
         # if trade 2 is executed without problem
         self.trade2_flag = 2
