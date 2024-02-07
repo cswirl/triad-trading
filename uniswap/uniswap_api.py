@@ -3,8 +3,7 @@ import requests
 import json
 from web3 import Web3
 
-import func_triangular_arb
-from uniswap import token_pair, utils
+from uniswap import token_pair, utils, func_triangular_arb
 from uniswap.config_file import *
 from uniswap.constants import *
 
@@ -83,7 +82,7 @@ def create_tokens_and_trading_pairs(data_pools:[]):
 
     print("creating a list of trading pairs from data pools. . .")
 
-    pools = data_pools[:LIMIT] if LIMIT <= len(data_pools) else data_pools      # will get an error if the limit is more than the length of the list
+    pools = data_pools[:LIMIT] if LIMIT <= len(data_pools) else data_pools
 
     pairs_map = {}
     tokens_dict = {}
@@ -230,7 +229,7 @@ def _recreate_triad_structure(pools_data):
 
     if structured_pairs:
         file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, TRIAD_JSON_FILENAME)
-        utils.save_json_to_file(file_path)
+        utils.save_json_to_file(structured_pairs, file_path)
 
     return structured_pairs
 
@@ -256,5 +255,11 @@ def get_token(symbol):
 
 #-----------------------------------------------------------------
 
-POOLS = retrieve_data_pools(cache=True)
+user_input = input("Input 'y' to fetch newest data pools from external data source OR Press ENTER to load pools from local cache: ")
+use_cache = user_input.lower() != 'y'
+
+POOLS = retrieve_data_pools(use_cache)
 PAIRS_DICT, TOKENS_DICT = create_tokens_and_trading_pairs(POOLS)
+TRIANGLE_STRUCTURE_PAIRS = retrieve_structured_pairs(POOLS, use_cache)
+
+# original author shaun implementation - saves to local storage: shaun_uniswap_surface_rates.json

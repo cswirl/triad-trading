@@ -164,8 +164,6 @@ class TestUniswapApi(unittest.TestCase):
 
 
 
-
-
     def test_main(self):
 
         res = Web3.to_wei(1, 'ether')
@@ -203,6 +201,8 @@ class TestUniswapApi(unittest.TestCase):
         pools = uniswap_api.POOLS
         pairs_dict = uniswap_api.PAIRS_DICT
         tokens = uniswap_api.TOKENS_DICT
+        tri_struc_pairs = uniswap_api.TRIANGLE_STRUCTURE_PAIRS
+
 
 
 

@@ -1,9 +1,9 @@
 
 # Structure trading pair groups
-def structure_trading_pairs(pairs, limit):
+def structure_trading_pairs(pairs:[], limit):
     triangular_pairs_list = []
     remove_duplicates_list = []
-    pairs_list = pairs[:limit]
+    pairs_list = pairs[:limit] if limit <= len(pairs) else pairs
 
     # Loop through each coin to find potential matches
     for pair_a in pairs_list:
