@@ -39,23 +39,44 @@ class TestTrader(unittest.TestCase):
 
         #triad_util.get_depth_rate,
         trader = Trader(
+            "USDC_WETH_APE",
             self._test_depth_rate,
-            calculate_seed_fund=triad_util.calculate_seed_fund,
-            pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'],
-            pathway_triplet = "USDC_WETH_APE")
+            calculate_seed_fund=triad_util.calculate_seed_fund
+        )
         asyncio.run(trader.start_trading())
 
     def test_multiple_trader_instance(self):
         asyncio.run(self._multiple_trader_instance())
 
     async def _multiple_trader_instance(self):
+        triplets_set, triplets_list = extract_triplets()
 
-        trader1 = Trader(pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'], pathway_triplet = "USDC_WETH_APE")
-        trader2 = Trader(pathway=['APE_WETH', 'APE_USDC', 'USDC_WETH'], pathway_triplet = "WETH_APE_USDC")
-        traders = [trader1, trader2]
+        pathway_triplet_list = []
+        for triplet in triplets_set:
+            unfreeze_set = set(triplet)
+            seed_token = self.test_extract_seed_token(unfreeze_set)
+
+            forward_reverse_tuple = self.test_create_two_pathways(seed_token, unfreeze_set)
+            if forward_reverse_tuple:
+                pathway_triplet_list.extend([*forward_reverse_tuple])
+
+        if len(pathway_triplet_list) < 1: return None
+
+        limit = 20
+        pathway_triplet_list_LIMITED = pathway_triplet_list[0:limit] if len(pathway_triplet_list) >= limit else pathway_triplet_list
+
+        traders_list = []
+        for pathway_triplet in pathway_triplet_list_LIMITED:
+            # triad_util.get_depth_rate,
+            trader = Trader(
+                pathway_triplet,
+                self._test_depth_rate,
+                calculate_seed_fund=triad_util.calculate_seed_fund
+            )
+            traders_list.append(trader)
 
         coroutine_list = []
-        for trader in traders:
+        for trader in traders_list:
             coroutine_list.append(trader.start_trading())
 
         await asyncio.gather(*coroutine_list)
@@ -127,7 +148,6 @@ class TestTrader(unittest.TestCase):
 
         return seed_token
 
-
     def test_create_two_pathways(self, seed_token, triplets_set):
         delim = "_"
         # the forward and reverse pathway "USDC" - {"WETH", "UST"}
@@ -142,28 +162,6 @@ class TestTrader(unittest.TestCase):
         reverse_path = seed_token + delim + remaining_list[1] + delim + remaining_list[0]
 
         return forward_path, reverse_path
-
-    def test_create_trader(self):
-        triplets_set, triplets_list = extract_triplets()
-
-        pathway_triplet_list = []
-        for triplet in triplets_set:
-            unfreeze_set = set(triplet)
-            seed_token = self.test_extract_seed_token(unfreeze_set)
-
-            forward_reverse_tuple = self.test_create_two_pathways(seed_token, unfreeze_set)
-            if forward_reverse_tuple:
-                pathway_triplet_list.extend([*forward_reverse_tuple])
-
-        if len(pathway_triplet_list) < 1: return None
-
-        # triad_util.get_depth_rate,
-        trader = Trader(
-            self._test_depth_rate,
-            calculate_seed_fund=triad_util.calculate_seed_fund,
-            pathway=['USDC_WETH', 'APE_WETH', 'APE_USDC'],
-            pathway_triplet=pathway_triplet_list[0])
-        asyncio.run(trader.start_trading())
 
 
 

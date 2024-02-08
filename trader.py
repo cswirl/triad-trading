@@ -28,10 +28,9 @@ MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE
 NO_FUNDS_SLEEP_TIME = 60
 
 class Trader:
-    def __init__(self, func_depth_rate, calculate_seed_fund = None, **kwargs):
+    def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
         self.id = uuid.uuid4()
-        self.pathway_triplet = kwargs["pathway_triplet"]    # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
-        self.pathway = kwargs["pathway"]
+        self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
         self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
         self.flags = [0,0,0]
