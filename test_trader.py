@@ -1,6 +1,8 @@
 import asyncio
 import unittest
+from datetime import datetime
 
+import trader as trader_MODULE
 from trader import Trader
 from uniswap import uniswap_api, utils
 import triad_util
@@ -30,20 +32,68 @@ def extract_triplets():
 
     return triplets_set, triplets_list
 
+async def trader_monitor(traders_list:[Trader]):
+    msg = []
+    active_list = []
+    while len(traders_list) > 0:
+        _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
+        initial_active_traders = len(traders_list)
+        dormant_count = 0
+
+        header1 = f"Initial Active Traders: {initial_active_traders}"
+        header2 = f"timestamp: {_now}"
+        msg.append(header1)
+        msg.append(header2)
+        active_list.append(header1)
+        active_list.append(header2)
+
+        for trader in traders_list:
+            msg.append(f"status: {trader.internal_state} - {str(trader)}")
+            if trader.internal_state == trader_MODULE.TraderState.DORMANT:
+                dormant_count += 1
+            elif trader.internal_state == trader_MODULE.TraderState.HUNTING:
+                active_list.append(f"status: {trader.internal_state} - {str(trader)}")
+
+        msg.append("============================================================")
+        msg.append(f"{len(active_list)} / {initial_active_traders} active traders")
+        msg.append(f"{dormant_count} / {initial_active_traders} dormant traders")
+
+        active_list.append("============================================================")
+        active_list.append(f"{len(active_list)} / {initial_active_traders} active traders")
+
+        # save log ever 30 sec
+        filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
+
+        filename = f"traders-list-status_{filename_timestamp}.txt"
+        logs = "\n".join(msg)
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+
+        filename = f"traders-list-status_ACTIVE_{filename_timestamp}.txt"
+        logs = "\n".join(active_list)
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+
+        msg.clear()
+        active_list.clear()
+        await asyncio.sleep(20)
+
 
 
 class TestTrader(unittest.TestCase):
 
     def test_trader_execute_trade(self):
-        extract_triplets()
+        asyncio.run(self._test_trader_execute_trade())
 
-        #triad_util.get_depth_rate,
+    async def _test_trader_execute_trade(self):
+        # triad_util.get_depth_rate,
         trader = Trader(
             "USDC_WETH_APE",
-            self._test_depth_rate,
+            triad_util.get_depth_rate,
             calculate_seed_fund=triad_util.calculate_seed_fund
         )
-        asyncio.run(trader.start_trading())
+        traders_list = [trader]
+
+        await asyncio.gather(trader.start_trading(), self.handle_user_input(traders_list))
+
 
     def test_multiple_trader_instance(self):
         asyncio.run(self._multiple_trader_instance())
@@ -62,7 +112,7 @@ class TestTrader(unittest.TestCase):
 
         if len(pathway_triplet_list) < 1: return None
 
-        limit = 20
+        limit = 1000
         pathway_triplet_list_LIMITED = pathway_triplet_list[0:limit] if len(pathway_triplet_list) >= limit else pathway_triplet_list
 
         traders_list = []
@@ -70,7 +120,7 @@ class TestTrader(unittest.TestCase):
             # triad_util.get_depth_rate,
             trader = Trader(
                 pathway_triplet,
-                self._test_depth_rate,
+                triad_util.get_depth_rate,
                 calculate_seed_fund=triad_util.calculate_seed_fund
             )
             traders_list.append(trader)
@@ -79,8 +129,27 @@ class TestTrader(unittest.TestCase):
         for trader in traders_list:
             coroutine_list.append(trader.start_trading())
 
-        await asyncio.gather(*coroutine_list)
+        trader_MODULE.TOTAL_ACTIVE_TRADERS = len(traders_list) * 1.5
 
+        await asyncio.gather(*coroutine_list, trader_monitor(traders_list))
+
+
+    async def handle_user_input(self, traders_list):
+        while True:
+            command = await asyncio.to_thread(input, "Type what to halt: HUNTING ( hunt | resume ) : STOP ALL (stop) : ")
+            if command == "hunt":
+                print("Halting traders hunting for profit . . .")
+                for trader in traders_list:
+                    trader.hunt_profit_flag = False
+            if command == "resume":
+                print("Resume traders hunting for profit . . .")
+                for trader in traders_list:
+                    trader.hunt_profit_flag = True
+            elif command == "stop":
+                for trader in traders_list:
+                    trader.start_trading_flag = False
+                print("Exiting the program . . .")
+                break
 
     def test_extract_triplets(self):
 

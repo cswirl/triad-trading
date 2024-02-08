@@ -2,6 +2,7 @@ import asyncio
 import time
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 import triad_util
@@ -27,34 +28,56 @@ DEFAULT_SLEEP_TIME = 0.3
 MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value
 NO_FUNDS_SLEEP_TIME = 60
 
+SECONDS_IN_A_DAY = 86400
+LIMIT_PER_DAY = 100000      #INFURA
+#SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
+
+class TraderState(Enum):    # using a text mapping is available
+    IDLE = "idle"
+    ACTIVE = "active"
+    HUNTING = "hunting"
+    TRADING = "trading"
+    DORMANT = "dormant" # object still in memory due to traders list reference
+
+spacer1 = "==================================="
+
 class Trader:
     def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
         self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
-        self.flags = [0,0,0]
+
+        self.internal_state = TraderState.ACTIVE
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
         self.print_status_flag = True
+
         self.lifespan_logs = []
         self.trade_logs = []
 
+        self.hunt_profit_flag = True
+        self.start_trading_flag = True
+
         self.get_depth_rate = func_depth_rate
 
+
         self.logger(f"Greetings from {str(self)}")
+        self.logger(f"Active Traders: {TOTAL_ACTIVE_TRADERS}")
 
     async def start_trading(self):
         result = True
 
 
-        while result:
+        while result and self.start_trading_flag:
             result = await self.execute_trade()
 
         self.logger(f"Terminating {self.id} : result = {result or "not set"}")
 
         self.save_logs()
+
+        self.internal_state = TraderState.DORMANT
 
         # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
         # one full trade is enough for now for study
@@ -62,18 +85,28 @@ class Trader:
 
 
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
-        self.logger("Changing state: 'Hunting'")
+        self.logger("Changing state: 'Hunting Profit'")
+        self.internal_state = TraderState.HUNTING
         while True:
+
+            if self.hunt_profit_flag == False:
+                continue
+
             good_depth = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
 
-            sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
-            self.logger(f"sleep time {sleep_time}")
-            await asyncio.sleep(float(sleep_time))
             if good_depth:
                 self.logger("Changing State: 'Trading'")
                 break
 
+            sleep_time = LIMIT_PER_DAY and SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
+            #sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
+            self.logger(f"sleep time {sleep_time}")
+            await asyncio.sleep(sleep_time)
+
+
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
+
+        self.logger(spacer1 + "Inquiring price")
 
         token1, token2, token3 = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)
 
@@ -81,30 +114,32 @@ class Trader:
 
         if amount_out_1 == 0:
             amount_out_1 = func_depth_rate(token1,token2, test_amount)
+            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2}")
 
         if amount_out_2 == 0:
             amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
+            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
 
         if amount_out_3 == 0:
             amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
+            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
 
 
         # calculate pnl and pnl percentage
         profit_loss = test_amount and amount_out_3 - test_amount
         profit_loss_perc = test_amount and profit_loss / float(test_amount) * 100
 
+        self.logger("--------------------")
+        self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
+        self.logger(f"PnL : {profit_loss}")
+        self.logger(f"PnL % : {profit_loss_perc}")
+        self.logger("--------------------")
+
+        self.save_logs()
+
         if profit_loss_perc >= DEPTH_MIN_RATE:
-            self.logger("========Profit Found")
-            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2}")
-            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
-            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
-            self.logger("--------------------")
-            self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
-            self.logger(f"PnL : {profit_loss}")
-            self.logger(f"PnL % : {profit_loss_perc}")
-
+            self.logger(spacer1 + "Profit Found")
             self.save_logs()
-
             return True
 
         return False
@@ -140,13 +175,15 @@ class Trader:
             # Returning false will break the outer trading execution loop
             if seedFund is None: return False
 
+            self.internal_state = TraderState.TRADING
+
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
 
-            await self.hunt_profit(trade1_result)
+            #await self.hunt_profit(trade1_result)
             trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
 
-            await self.hunt_profit(trade1_result, trade2_result)
+            #await self.hunt_profit(trade1_result, trade2_result)
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
             # calculate pnl and pnl percentage
@@ -177,9 +214,10 @@ class Trader:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
-        except:
+        except Exception as e:
             self.print_status_flag = False
             self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger(f"Exception : {e.with_traceback(None)}")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
 
@@ -189,9 +227,9 @@ class Trader:
     async def execute_trade_1(self):
         start = time.perf_counter()
         self.trade1_flag = 1
-        self.logger("========================executing trade 1")
+        self.logger(spacer1 + "executing trade 1")
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(3)
 
         # if trade 1 is executed without problem
         self.trade1_flag  = 2
@@ -206,7 +244,7 @@ class Trader:
     async def execute_trade_2(self):
         start = time.perf_counter()
         self.trade2_flag = 1
-        self.logger("========================executing trade 2")
+        self.logger(spacer1 + "executing trade 2")
 
         await asyncio.sleep(4)
 
@@ -221,7 +259,7 @@ class Trader:
     async def execute_trade_3(self):
         start = time.perf_counter()
         self.trade3_flag = 1
-        self.logger("========================executing trade 3")
+        self.logger(spacer1 + "executing trade 3")
 
         # if trade 3 is executed without problem
         await asyncio.sleep(2)

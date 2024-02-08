@@ -110,9 +110,11 @@ class Uniswap:
         except ContractLogicError as e:
             # Handle contract-specific logic errors
             print(f"Contract logic error: {e} - data: {e.data}")
+            raise e
 
         except Exception as e:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
+            raise e
 
         return None

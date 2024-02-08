@@ -1,3 +1,5 @@
+import asyncio
+
 
 def fetch_data_from_exchange(exchange):
     """
@@ -10,5 +12,6 @@ def fetch_data_from_exchange(exchange):
 
     exchange_data = {}
     return exchange_data
+
 
 
