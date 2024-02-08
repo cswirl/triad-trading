@@ -11,9 +11,19 @@ QUOTER_ABI_FILE_PATH = "assets/quoter.abi"
 ROUTER_ADDRESS = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 ROUTER_ABI_FILE_PATH = "assets/router.abi"
 
-STABLE_COINS = ["USDC", "USDT", "DAI", "FRAX"]
+STABLE_COINS = ["USDC", "USDT", "DAI", "FRAX"]  # must be a list to preserved order
 
-STARTING_TOKENS = [*STABLE_COINS, "WETH", "WBTC", "UNI"] # ROUGH DRAFT
+APPROVED_TOKENS = ["WETH", "WBTC", "UNI"]       # must be a list to preserved order
+
+STARTING_TOKENS = [*STABLE_COINS, *APPROVED_TOKENS] # must be a list to preserved order
+
+
+
+FundingTiers =  [
+    # set is used as no order necessary
+    (300, {*STABLE_COINS}), # set intersect: 2 or more will qualify
+    (100, {*STARTING_TOKENS})
+]
 
 
 Contracts = {

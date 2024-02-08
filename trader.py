@@ -32,14 +32,17 @@ SECONDS_IN_A_DAY = 86400
 LIMIT_PER_DAY = 100000      #INFURA
 #SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
 
+
+indent_1 = "=" * 80
+
 class TraderState(Enum):    # using a text mapping is available
     IDLE = "idle"
     ACTIVE = "active"
     HUNTING = "hunting"
     TRADING = "trading"
-    DORMANT = "dormant" # object still in memory due to traders list reference
+    DORMANT = "dormant" # object still in memory due to reference from traders list
 
-spacer1 = "==================================="
+
 
 class Trader:
     def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
@@ -106,7 +109,7 @@ class Trader:
 
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
 
-        self.logger(spacer1 + "Inquiring price")
+        self.logger(indent_1 + "Inquiring price")
 
         token1, token2, token3 = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)
 
@@ -138,7 +141,7 @@ class Trader:
         self.save_logs()
 
         if profit_loss_perc >= DEPTH_MIN_RATE:
-            self.logger(spacer1 + "Profit Found")
+            self.logger(indent_1 + "Profit Found")
             self.save_logs()
             return True
 
@@ -227,14 +230,14 @@ class Trader:
     async def execute_trade_1(self):
         start = time.perf_counter()
         self.trade1_flag = 1
-        self.logger(spacer1 + "executing trade 1")
+        self.logger(indent_1 + "executing trade 1")
 
         await asyncio.sleep(3)
 
         # if trade 1 is executed without problem
         self.trade1_flag  = 2
 
-        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.logger(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
@@ -244,14 +247,14 @@ class Trader:
     async def execute_trade_2(self):
         start = time.perf_counter()
         self.trade2_flag = 1
-        self.logger(spacer1 + "executing trade 2")
+        self.logger(indent_1 + "executing trade 2")
 
         await asyncio.sleep(4)
 
         # if trade 2 is executed without problem
         self.trade2_flag = 2
 
-        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.logger(f"Trade-2 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
@@ -259,14 +262,14 @@ class Trader:
     async def execute_trade_3(self):
         start = time.perf_counter()
         self.trade3_flag = 1
-        self.logger(spacer1 + "executing trade 3")
+        self.logger(indent_1 + "executing trade 3")
 
         # if trade 3 is executed without problem
         await asyncio.sleep(2)
 
         self.trade3_flag = 2
 
-        self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        #self.logger("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.logger(f"Trade-3 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
@@ -333,3 +336,55 @@ class Trader:
 
     def __str__(self):
         return self.pathway_triplet + '_' + str(self.id)
+
+
+
+
+
+async def trader_monitor(traders_list:[Trader]):
+    msg = []
+    active_list = []
+    dormant_list = []
+    while len(traders_list) > 0:
+        _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
+        initial_active_traders = len(traders_list)
+
+        header1 = f"Initial Active Traders: {initial_active_traders}"
+        header2 = f"timestamp: {_now}"
+        msg.append(header1)
+        msg.append(header2)
+        # below needs to be sliced-out when being extended by msg list below
+        active_list.append(header1)
+        active_list.append(header2)
+
+        for trader in traders_list:
+            if trader.internal_state == TraderState.DORMANT:
+                dormant_list.append(f"status: {trader.internal_state} - {str(trader)}")
+            elif trader.internal_state == TraderState.ACTIVE or trader.internal_state == TraderState.HUNTING:
+                active_list.append(f"status: {trader.internal_state} - {str(trader)}")
+
+        active_count = len(active_list) - 2
+        msg.extend(active_list[2:])
+        msg.extend(dormant_list)
+        msg.append("============================================================")
+        msg.append(f"{active_count} / {initial_active_traders} active traders")
+        msg.append(f"{len(dormant_list)} / {initial_active_traders} dormant traders")
+
+        active_list.append("============================================================")
+        active_list.append(f"{active_count} / {initial_active_traders} active traders")
+
+        # save log ever 30 sec
+        filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
+
+        filename = f"traders-list-status_{filename_timestamp}.txt"
+        logs = "\n".join(msg)
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+
+        filename = f"traders-list-status_ACTIVE_{filename_timestamp}.txt"
+        logs = "\n".join(active_list)
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+
+        msg.clear()
+        active_list.clear()
+        dormant_list.clear()
+        await asyncio.sleep(20)

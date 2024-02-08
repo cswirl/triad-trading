@@ -10,6 +10,10 @@ from trader import Trader
 
 
 async def test_main():
+    """ EXPERIMENTAL
+
+    :return:
+    """
     # triad_util.get_depth_rate,
     trader = Trader(
         "USDC_WETH_APE",
@@ -48,8 +52,6 @@ async def handle_user_input(traders_list):
 if __name__ == '__main__':
     print("hello")
 
-
-test_main()
 
 
 

@@ -1,12 +1,20 @@
+from enum import Enum
+
 from web3 import Web3
 
 from uniswap import uniswap_api
 from uniswap.token_pair import Token
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
+from app_constants import *             # will override other constants modules?
 
-sqrtPriceLimitX96 = 0
-GAS_FEE = 3000
+
+class FundingResponse(Enum):
+    APPROVED = 1
+    MAX_TRADING_TRANSACTIONS_EXCEEDED = 2
+    CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED = 3
+
+
 
 """
     STEPS:
@@ -63,11 +71,51 @@ def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
 
     return amount_out
 
+
+
+def _get_funding_amount(triplet_set):
+
+    # stable coins
+    intersect_count = len(triplet_set & set(STABLE_COINS))
+    if intersect_count == 3:    # all stable coins - hard to get profits
+        return FUNDING_TIER_0
+    elif intersect_count == 2:  # two stable coins
+        return FUNDING_TIER_1
+    elif intersect_count == 1: # one stable coin
+        return FUNDING_TIER_2
+
+    # starting tokens: approved and stable coins
+    intersect_count = len(triplet_set & set(STARTING_TOKENS))
+    if intersect_count == 3:    # all in starting tokens
+        return FUNDING_TIER_1
+    elif intersect_count == 2:  # two in starting tokens
+        return FUNDING_TIER_2
+    elif intersect_count == 1: # one in starting tokens
+        return FUNDING_TIER_3
+
+    # if it pass all the filters above - triplet of rare coins
+    return MINIMUM_FUNDING_IN_USD
+
 def ask_for_funding(symbol):
+    # see app constant
+    # MAX_TRADING_COUNT = 5  # losing gas fee for every reverted / fail triangular trade
+
+    funding_response  = None
+    # max transaction count
+    if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+        funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
+    elif g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+        funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
+    else:
+        funding_response = FundingResponse.APPROVED
+
+    fund = _get_funding_amount(symbol)
+
+
     # todo: ask for funding
     # must check the account balance in a ethereum wallet - use uniswapV3 instance
     # $100 USD or in percentage of available funds like 5%, 10%, whichever is greater?
-    amount_in_usd = 10
+    amount_in_usd = fund or MINIMUM_FUNDING_IN_USD  # 10
 
     amount_out = get_token_price_in_usd(symbol, usd_amount=amount_in_usd)
 
@@ -92,3 +140,8 @@ def get_token_price_in_usd(symbol, stable_coin="USDC", usd_amount=100):
 network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
 _uniswap = Uniswap(network_config=network, provider=provider)
+
+
+# global counter variables
+g_trade_transaction_counter = 0
+g_consecutive_trade_failure = 0
