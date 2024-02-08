@@ -114,3 +114,5 @@ class Uniswap:
         except Exception as e:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
+
+        return None

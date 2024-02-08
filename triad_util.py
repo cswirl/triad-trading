@@ -63,6 +63,30 @@ def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
 
     return amount_out
 
+def ask_for_funding(symbol):
+    # todo: ask for funding
+    # must check the account balance in a ethereum wallet - use uniswapV3 instance
+    # $100 USD or in percentage of available funds like 5%, 10%, whichever is greater?
+    amount_in_usd = 10
+
+    amount_out = get_token_price_in_usd(symbol, usd_amount=amount_in_usd)
+
+    return amount_in_usd, amount_out
+
+def get_token_price_in_usd(symbol, stable_coin="USDC", usd_amount=100):
+    stable_coin = uniswap_api.get_token(stable_coin)
+    token1 = uniswap_api.get_token(symbol)
+
+    usd_amount_in = usd_amount
+    fee = 3000
+
+    is_stables = symbol in STABLE_COINS
+    if is_stables: return usd_amount_in
+
+    # None if no pool of a given pair - rare tokens
+    amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
+
+    return amount_out
 
 
 network = uniswap_api.get_network("mainnet")

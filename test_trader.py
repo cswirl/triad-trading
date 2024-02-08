@@ -50,10 +50,6 @@ class TestTrader(unittest.TestCase):
 
     async def _multiple_trader_instance(self):
 
-
-
-
-
         trader1 = Trader(pathway = ['USDC_WETH', 'APE_WETH', 'APE_USDC'], pathway_triplet = "USDC_WETH_APE")
         trader2 = Trader(pathway=['APE_WETH', 'APE_USDC', 'USDC_WETH'], pathway_triplet = "WETH_APE_USDC")
         traders = [trader1, trader2]
@@ -65,14 +61,11 @@ class TestTrader(unittest.TestCase):
         await asyncio.gather(*coroutine_list)
 
 
-    def _test_depth_rate(self, token0_symbol, token1_symbol, amount_in):
-        return amount_in * 1.03 # give 3% profit each trade - accumulates
-
-
     def test_extract_triplets(self):
 
         weth = "WETH"
-        stablecoins = uniswap_api.STABLE_COINS
+        stablecoins = set(uniswap_api.STABLE_COINS)
+
         triplets_with_stablecoin_list = []
 
         triplets_set, triplets_list = extract_triplets()
@@ -91,3 +84,89 @@ class TestTrader(unittest.TestCase):
 
 
         return
+
+    def test_ask_for_funding(self):
+        pass
+
+    def test_extract_seed_token(self, triplets_set_arg):
+        """
+
+        """
+        delim = "_"
+
+        trading_pairs = ['USDC_WETH', 'USDC_UST', 'UST_WETH']
+
+        trade_sequence = ['USDC_WETH', 'UST_WETH', 'USDC_UST']
+
+        triplets_set = triplets_set_arg # {"USDC", "WETH", "UST"}
+
+        weth = "WETH"
+
+        STABLE_COINS = ["USDC", "USDT", "DAI", "FRAX"]
+        STARTING_TOKENS = [*STABLE_COINS, "WETH", "WBTC", "UNI"]  # ROUGH DRAFT
+
+        approved_tokens_list = STARTING_TOKENS
+        approved_tokens_set = set(approved_tokens_list)
+
+        approved_tokens_intersect = triplets_set & approved_tokens_set
+
+        seed_token = None
+        if len(approved_tokens_intersect) == 1: # we found the seed token
+            seed_token = approved_tokens_intersect.pop()
+
+        elif len(approved_tokens_intersect) == 2 or len(approved_tokens_intersect) == 3: # 3: all are stable coins
+            for token in approved_tokens_list: # the stablecoins_list must be in order of preference
+                if token in approved_tokens_intersect:
+                    seed_token = token
+                    break
+        else:
+            print("Token not in approved list")
+            return None
+
+        # seed token = "USDC"
+
+        return seed_token
+
+
+    def test_create_two_pathways(self, seed_token, triplets_set):
+        delim = "_"
+        # the forward and reverse pathway "USDC" - {"WETH", "UST"}
+        # forward
+        remaining_set = triplets_set.difference({seed_token})
+        remaining_list = list(remaining_set)
+        if len(remaining_list) > 2:
+            # seed token is not in the approved list or None
+            return None
+
+        forward_path = seed_token + delim + remaining_list[0] + delim + remaining_list[1]
+        reverse_path = seed_token + delim + remaining_list[1] + delim + remaining_list[0]
+
+        return forward_path, reverse_path
+
+    def test_create_trader(self):
+        triplets_set, triplets_list = extract_triplets()
+
+        pathway_triplet_list = []
+        for triplet in triplets_set:
+            unfreeze_set = set(triplet)
+            seed_token = self.test_extract_seed_token(unfreeze_set)
+
+            forward_reverse_tuple = self.test_create_two_pathways(seed_token, unfreeze_set)
+            if forward_reverse_tuple:
+                pathway_triplet_list.extend([*forward_reverse_tuple])
+
+        if len(pathway_triplet_list) < 1: return None
+
+        # triad_util.get_depth_rate,
+        trader = Trader(
+            self._test_depth_rate,
+            calculate_seed_fund=triad_util.calculate_seed_fund,
+            pathway=['USDC_WETH', 'APE_WETH', 'APE_USDC'],
+            pathway_triplet=pathway_triplet_list[0])
+        asyncio.run(trader.start_trading())
+
+
+
+    #------------------------------------------------------------------------------------
+    def _test_depth_rate(self, token0_symbol, token1_symbol, amount_in):
+        return amount_in * 1.03 # give 3% profit each trade - accumulates

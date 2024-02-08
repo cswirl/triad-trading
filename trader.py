@@ -33,7 +33,7 @@ class Trader:
         self.pathway_triplet = kwargs["pathway_triplet"]    # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway = kwargs["pathway"]
         self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
-        self.seedFund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
+        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
         self.flags = [0,0,0]
         self.trade1_flag = 0
         self.trade2_flag = 0
@@ -78,10 +78,10 @@ class Trader:
 
         token1, token2, token3 = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)
 
-        seed_amount = self.seedFund
+        test_amount = self.test_fund
 
         if amount_out_1 == 0:
-            amount_out_1 = func_depth_rate(token1,token2, seed_amount)
+            amount_out_1 = func_depth_rate(token1,token2, test_amount)
 
         if amount_out_2 == 0:
             amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
@@ -91,12 +91,12 @@ class Trader:
 
 
         # calculate pnl and pnl percentage
-        profit_loss = seed_amount and amount_out_3 - seed_amount
-        profit_loss_perc = seed_amount and profit_loss / float(seed_amount) * 100
+        profit_loss = test_amount and amount_out_3 - test_amount
+        profit_loss_perc = test_amount and profit_loss / float(test_amount) * 100
 
         if profit_loss_perc >= DEPTH_MIN_RATE:
             self.logger("========Profit Found")
-            self.logger(f"Quote 1 : {seed_amount} {token1} to {amount_out_1} {token2}")
+            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2}")
             self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
             self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
             self.logger("--------------------")
@@ -110,23 +110,17 @@ class Trader:
 
         return False
 
-
-    def allocate_seed_fund(self, allocate_seed_fund: "a function"):
-        seedFund = allocate_seed_fund("token address or symbol")
-        return seedFund
-
     async def ask_for_funding(self):
 
-        seedFund = self.allocate_seed_fund(lambda x: 100)
-        self.seedFund = seedFund
-        if seedFund and seedFund > 0:
-            self.logger(f"Seed fund: {seedFund}")
-            return seedFund
-        else:
+        fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol)
+
+        if fund is None:
             self.logger("No funds available")
             await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
+        else:
+            self.logger(f"Seed fund: {fund} ---approx. {fund_in_usd} USD")
 
-        return None
+        return fund
 
     async def execute_trade(self):
         start = time.perf_counter()
@@ -146,8 +140,6 @@ class Trader:
             seedFund = await self.ask_for_funding()
             # Returning false will break the outer trading execution loop
             if seedFund is None: return False
-
-
 
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
