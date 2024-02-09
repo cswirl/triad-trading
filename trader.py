@@ -52,7 +52,6 @@ class Trader:
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
-        self.print_status_flag = True
 
         self.lifespan_logs = []
         self.trade_logs = []
@@ -220,20 +219,17 @@ class Trader:
             self.save_result_json(result_dict)
 
         except asyncio.TimeoutError:
-            self.logger("The asynchronous function timed out.")
-            self.print_status_flag = False
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger("The asynchronous function timed out.")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
 
         except UserWarning as w:
-            self.print_status_flag = False
             self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
 
         except Exception as e:
-            self.print_status_flag = False
             self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
             self.logger(f"Exception : {e.with_traceback(None)}")
             # delegate to another entity program - like a 'failed trade resolver'
@@ -288,42 +284,6 @@ class Trader:
         self.logger(f"Trade-3 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
-
-    async def check_trading_status(self):
-        """
-        todo: these status checks can be deleted
-        :return:
-        """
-        counter = 0
-        while self.print_status_flag \
-            and not (2 == self.trade1_flag == self.trade2_flag == self.trade3_flag) \
-            and counter <= ALL_TRADE_TIMEOUT:
-
-            self.print_status()
-            counter += 1
-            await asyncio.sleep(1)
-
-        self.print_status()
-
-    def print_status(self):
-        self.logger("####################")
-        trade1_status = self.get_print_status(self.trade1_flag)
-        self.logger(f"Trade 1 status: {trade1_status}")
-        # print(f" trade1_flag: {self.trade1_flag}")
-
-        trade2_status = self.get_print_status(self.trade2_flag)
-        self.logger(f"Trade 2 status: {trade2_status}")
-        # print(f" trade2_flag: {self.trade2_flag}")
-
-        trade3_status = self.get_print_status(self.trade3_flag)
-        self.logger(f"Trade 3 status: {trade3_status}")
-        # print(f" trade3_flag: {self.trade3_flag}")
-
-    def get_print_status(self, flag):
-        if flag == 0: return "idle"
-        elif flag == 1: return "in-progress"
-        elif flag == 2: return "completed"
-        else: return "Invalid trade flag value"
 
 
     def logger(self, msg):

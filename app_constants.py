@@ -24,3 +24,5 @@ FUNDING_TIER_3 = 30
 MINIMUM_FUNDING_IN_USD = 10
 
 TRADER_LIST_LIMIT = 0  # Number of Traders. Use 0 for to get ALL
+
+#-------------------- GLOBAL VARIABLES ? -----------------------------------
