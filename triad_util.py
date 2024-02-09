@@ -13,6 +13,8 @@ class FundingResponse(Enum):
     APPROVED = 1
     MAX_TRADING_TRANSACTIONS_EXCEEDED = 2
     CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED = 3
+    SYMBOL_NOT_IN_PATHWAY_TRIPLET = 4
+    SYMBOL_NOT_IN_STARTING_TOKEN = 5
 
 
 
@@ -112,30 +114,39 @@ def _get_funding_amount(triplet_set):
     # if it passes all the filters above - triplet of rare coins
     return MINIMUM_FUNDING_IN_USD
 
-def ask_for_funding(symbol):
+def ask_for_funding(symbol: str, pathway_triplet_set: str):
     # see app constant
     # MAX_TRADING_COUNT = 5  # losing gas fee for every reverted / fail triangular trade
 
-    funding_response  = None
-    # max transaction count
-    if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+    if symbol not in STARTING_TOKENS:
+        funding_response = FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN
+        return funding_response, None, None
+
+    # sanitation check
+    if symbol not in pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER):
+        funding_response = FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET
+        return funding_response, None, None
+
+    # max transaction count reached
+    if g_trade_transaction_counter > MAX_TRADING_TRANSACTIONS:
         funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
-    elif g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+        return funding_response, None, None
+
+    # consecutive trade failure
+    if g_consecutive_trade_failure > CONSECUTIVE_FAILED_TRADE_THRESHOLD:
         funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
-    else:
-        funding_response = FundingResponse.APPROVED
+        return funding_response, None, None
 
-    fund = _get_funding_amount(symbol)
-
-
-    # todo: ask for funding
+    # flash swap do not need the stuffs below, we use the _get_funding_amount()
     # must check the account balance in a ethereum wallet - use uniswapV3 instance
     # $100 USD or in percentage of available funds like 5%, 10%, whichever is greater?
-    amount_in_usd = fund or MINIMUM_FUNDING_IN_USD  # 10
+    triplet_set = set(pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER))
+    fund = _get_funding_amount(triplet_set)
 
+    amount_in_usd = fund or MINIMUM_FUNDING_IN_USD  # minimum is 10 as of now
     amount_out = get_token_price_in_usd(symbol, usd_amount=amount_in_usd)
 
-    return amount_in_usd, amount_out
+    return FundingResponse.APPROVED, amount_in_usd, amount_out
 
 def get_token_price_in_usd(symbol, stable_coin="USDC", usd_amount=100):
     stable_coin = uniswap_api.get_token(stable_coin)

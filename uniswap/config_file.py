@@ -18,14 +18,6 @@ APPROVED_TOKENS = ["WETH", "WBTC", "UNI"]       # must be a list to preserved or
 STARTING_TOKENS = [*STABLE_COINS, *APPROVED_TOKENS] # must be a list to preserved order
 
 
-
-FundingTiers =  [
-    # set is used as no order necessary
-    (300, {*STABLE_COINS}), # set intersect: 2 or more will qualify
-    (100, {*STARTING_TOKENS})
-]
-
-
 Contracts = {
         "router": {
             "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",

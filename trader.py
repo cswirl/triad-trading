@@ -5,18 +5,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
 
 from uniswap.constants import *
 from uniswap.config_file import *
+from app_constants import *
 
 
-DEPTH_MIN_RATE = 0
-
-USD_SEED_AMOUNT = 200   # The amount in US dollar to be used for price quotation
-
-ALL_TRADE_TIMEOUT = 60 * 60             # 60 * 60 = 1 hour
+ALL_TRADE_TIMEOUT = 60 * 60             # DELETE? 60 * 60 = 1 hour
 TRADE_TIMEOUT = 60 * 60
 
 # RATE LIMIT WILL DICTATE THE SLEEP TIME
@@ -25,12 +23,11 @@ SECONDS = 10    # will control the hunting sleep in seconds
 TOTAL_ACTIVE_TRADERS = 33 * SECONDS          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
 RATE_LIMIT_PER_SECOND = 33
 DEFAULT_SLEEP_TIME = 0.3
-MAX_SLEEP_TIME = 1 / RATE_LIMIT_PER_SECOND      # OVERKILL AND UNSAFE:  1 / RATE_LIMIT_PER_SECOND + some value
-NO_FUNDS_SLEEP_TIME = 60
+NO_FUNDS_SLEEP_TIME = 30                    # REMEMBER: block time is 15 sec.
 
-SECONDS_IN_A_DAY = 86400
-LIMIT_PER_DAY = 100000      #INFURA
-#SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
+#Formula: AUTO-ADJUSTING SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
+SECONDS_IN_A_DAY = 86400    # There are 86400 seconds in a day
+LIMIT_PER_DAY = 100000      # INFURA 100,000
 
 
 indent_1 = "=" * 80
@@ -49,7 +46,7 @@ class Trader:
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
-        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=USD_SEED_AMOUNT) or 1
+        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=MINIMUM_FUNDING_IN_USD) or 1
 
         self.internal_state = TraderState.ACTIVE
         self.trade1_flag = 0
@@ -149,15 +146,26 @@ class Trader:
 
     async def ask_for_funding(self):
 
-        fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol)
+        response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol)
 
-        if fund is None:
-            self.logger("No funds available")
+        if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
+            self.logger(f"{response}")
             await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
-        else:
+
+        elif response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
+            self.logger(f"{response}")
+            await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
+
+        elif response is FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN:
+            self.logger(f"{response} - symbol: {self.pathway_root_symbol}")
+
+        elif response is FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET:
+            raise UserWarning(f"Coding Error: {response}")
+
+        elif response is FundingResponse.APPROVED:
             self.logger(f"Seed fund: {fund} ---approx. {fund_in_usd} USD")
 
-        return fund
+        return response, fund
 
     async def execute_trade(self):
         start = time.perf_counter()
@@ -217,6 +225,13 @@ class Trader:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
+
+        except UserWarning as w:
+            self.print_status_flag = False
+            self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
+            # delegate to another entity program - like a 'failed trade resolver'
+            return False
+
         except Exception as e:
             self.print_status_flag = False
             self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
@@ -275,6 +290,10 @@ class Trader:
         return 1000
 
     async def check_trading_status(self):
+        """
+        todo: these status checks can be deleted
+        :return:
+        """
         counter = 0
         while self.print_status_flag \
             and not (2 == self.trade1_flag == self.trade2_flag == self.trade3_flag) \

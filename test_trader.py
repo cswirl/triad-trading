@@ -8,7 +8,8 @@ from uniswap import uniswap_api, utils
 import triad_util
 import triad_module
 
-TRADER_LIST_LIMIT = 30  # Number of Traders. Use 0 for to get ALL
+from app_constants import *
+
 
 
 def extract_triplets():

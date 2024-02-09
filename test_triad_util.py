@@ -58,4 +58,49 @@ class TestTriadUtil(unittest.TestCase):
         assert result == FUNDING_TIER_3
 
 
+    def test_ask_for_funding(self):
+        """
+        todo: need rigorous test
+        """
 
+        # symbol not it triplet
+        symbol = "AAVE"
+        triplet = "WETH_RNG_PENDLE"
+        a, b, c = triad_util.ask_for_funding(symbol, triplet)
+        assert a == triad_util.FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET
+
+        # max trading transactions
+        triad_util.g_trade_transaction_counter = MAX_TRADING_TRANSACTIONS + 1
+        symbol = "WETH"
+        triplet = "USDC_WETH_AAVE"
+        a, b, c = triad_util.ask_for_funding(symbol, triplet)
+        assert a == triad_util.FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
+
+        # reset variables used above - there must be a better way
+        triad_util.g_trade_transaction_counter = 0
+
+        # consecutive failed trades
+        triad_util.g_consecutive_trade_failure = CONSECUTIVE_FAILED_TRADE_THRESHOLD + 1
+        symbol = "WETH"
+        triplet = "USDC_WETH_AAVE"
+        a, b, c = triad_util.ask_for_funding(symbol, triplet)
+        assert a == triad_util.FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
+
+        # reset variables used above - there must be a better way
+        triad_util.g_consecutive_trade_failure = 0
+
+        #============================================
+        symbol = "WETH"
+        triplet = "USDC_WETH_AAVE"
+        a,b,c = triad_util.ask_for_funding(symbol, triplet)
+        assert a == triad_util.FundingResponse.APPROVED
+        assert b == FUNDING_TIER_2   # USDC_WETH
+        print(f"{b} USD in = {c} {symbol} out")    # amount based on market rate
+
+        # FUNDING_TIER_3
+        symbol = "WETH"
+        triplet = "WETH_RNG_PENDLE"
+        a, b, c = triad_util.ask_for_funding(symbol, triplet)
+        assert a == triad_util.FundingResponse.APPROVED
+        assert b == FUNDING_TIER_3  # WETH
+        print(f"{b} USD in = {c} {symbol} out")  # amount based on market rate
