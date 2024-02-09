@@ -74,26 +74,42 @@ def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
 
 
 def _get_funding_amount(triplet_set):
+    """
+    classifications and combinations is complex. Venn Diagram was used and still a work in progress. see notes on Arbitrage notebook.
 
-    # stable coins
-    intersect_count = len(triplet_set & set(STABLE_COINS))
-    if intersect_count == 3:    # all stable coins - hard to get profits
+    :param triplet_set:
+    :return:
+    """
+    stablecoins_intersect = len(triplet_set & set(STABLE_COINS))
+    approved_intersect = len(triplet_set & set(APPROVED_TOKENS))
+    starting_tokens_intersect = len(triplet_set & set(STARTING_TOKENS)) # MIXED OF STABLE COINS AND APPROVED TOKENS
+
+    # the if-elif order is important - priority on top
+    # notice at the top is FUNDING_TIER_0 --> FUNDING_TIER_1 --> FUNDING_TIER_2 and so on.
+    #
+    # TIER 0
+    if stablecoins_intersect == 3:    # all stable coins - hard to get profits
         return FUNDING_TIER_0
-    elif intersect_count == 2:  # two stable coins
+
+    # TIER 1
+    elif starting_tokens_intersect == 3:  # two in starting tokens
         return FUNDING_TIER_1
-    elif intersect_count == 1: # one stable coin
+    elif approved_intersect == 3:    # all in starting tokens
+        return FUNDING_TIER_1
+    elif stablecoins_intersect == 2:  # two stable coins
+        return FUNDING_TIER_1
+
+    # TIER 2
+    elif starting_tokens_intersect == 2:  # two in starting tokens
+        return FUNDING_TIER_2
+    elif approved_intersect == 2:
         return FUNDING_TIER_2
 
-    # starting tokens: approved and stable coins
-    intersect_count = len(triplet_set & set(STARTING_TOKENS))
-    if intersect_count == 3:    # all in starting tokens
-        return FUNDING_TIER_1
-    elif intersect_count == 2:  # two in starting tokens
-        return FUNDING_TIER_2
-    elif intersect_count == 1: # one in starting tokens
+    # TIER 3
+    elif starting_tokens_intersect == 1: # one in the mixed both - STARTING TOKENS
         return FUNDING_TIER_3
 
-    # if it pass all the filters above - triplet of rare coins
+    # if it passes all the filters above - triplet of rare coins
     return MINIMUM_FUNDING_IN_USD
 
 def ask_for_funding(symbol):
