@@ -50,16 +50,16 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
 
     return amount_out
 
-def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
+def calculate_seed_fund(symbol, pathway_triplet_set, stable_coin="USDC"):
 
     stable_coin = uniswap_api.get_token(stable_coin)
     token1 = uniswap_api.get_token(symbol)
 
-    usd_amount_in = usd_amount
-    fee = 3000
+    triplet_set = set(pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER))
+    usd_amount_in = _get_funding_amount(triplet_set)
 
-    is_stables = symbol in STABLE_COINS
-    if is_stables: return usd_amount_in
+    if symbol in STABLE_COINS:
+        return  usd_amount_in
 
     # None if no pool of a given pair - rare tokens
     amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
@@ -68,7 +68,7 @@ def calculate_seed_fund(symbol, stable_coin="USDC", usd_amount=100):
         #todo: calculate_seed_fund
         # try using path: usd -> weth -> rare token
         # but this is to be solved next since we are not interested to start trade with rare tokens
-        # for now we use hard-coded units of 500 for rare tokens
+        # for now we use hard-coded 500 units for rare tokens
         return 500
 
     return amount_out
@@ -79,7 +79,7 @@ def _get_funding_amount(triplet_set):
     """
     classifications and combinations is complex. Venn Diagram was used and still a work in progress. see notes on Arbitrage notebook.
 
-    :param triplet_set:
+    :param triplet_set (set):
     :return:
     """
     stablecoins_intersect = len(triplet_set & set(STABLE_COINS))

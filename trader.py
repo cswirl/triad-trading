@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from web3.exceptions import ContractLogicError
+
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -45,8 +47,8 @@ class Trader:
     def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
-        self.pathway_root_symbol = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
-        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, usd_amount=MINIMUM_FUNDING_IN_USD) or 1
+        self.pathway_root_symbol = pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
+        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, pathway_triplet) or 100
 
         self.internal_state = TraderState.ACTIVE
         self.trade1_flag = 0
@@ -64,6 +66,7 @@ class Trader:
 
         self.logger(f"Greetings from {str(self)}")
         self.logger(f"Active Traders: {TOTAL_ACTIVE_TRADERS}")
+        self.logger(f"Test Fund: {self.test_fund}")
 
     async def start_trading(self):
         result = True
@@ -145,7 +148,7 @@ class Trader:
 
     async def ask_for_funding(self):
 
-        response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol)
+        response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
         if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
             self.logger(f"{response}")
@@ -164,7 +167,7 @@ class Trader:
         elif response is FundingResponse.APPROVED:
             self.logger(f"Seed fund: {fund} ---approx. {fund_in_usd} USD")
 
-        return response, fund
+        return response, fund_in_usd, fund
 
     async def execute_trade(self):
         start = time.perf_counter()
@@ -181,9 +184,9 @@ class Trader:
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
-            seedFund = await self.ask_for_funding()
+            response, fund_in_usd, seedFund = await self.ask_for_funding()
             # Returning false will break the outer trading execution loop
-            if seedFund is None: return False
+            if response is not FundingResponse.APPROVED: return False
 
             self.internal_state = TraderState.TRADING
 
@@ -223,6 +226,13 @@ class Trader:
             self.logger("The asynchronous function timed out.")
             # delegate to another entity program - like a 'failed trade resolver'
             return False
+
+        except ContractLogicError as e:
+            # Handle contract-specific logic errors
+            print(f"Contract logic error: {e} - data: {e.data}")
+            #todo: what to do here?
+            await asyncio.sleep(60)
+            return True
 
         except UserWarning as w:
             self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")

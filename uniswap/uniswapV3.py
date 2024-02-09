@@ -116,5 +116,3 @@ class Uniswap:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
             raise e
-
-        return None
