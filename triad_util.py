@@ -7,6 +7,7 @@ from uniswap.token_pair import Token
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
+from func_triad_global import *
 
 
 class FundingResponse(Enum):
@@ -115,6 +116,7 @@ def _get_funding_amount(triplet_set):
     return MINIMUM_FUNDING_IN_USD
 
 def ask_for_funding(symbol: str, pathway_triplet_set: str):
+    global g_trade_transaction_counter
     # see app constant
     # MAX_TRADING_COUNT = 5  # losing gas fee for every reverted / fail triangular trade
 
@@ -127,10 +129,7 @@ def ask_for_funding(symbol: str, pathway_triplet_set: str):
         funding_response = FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET
         return funding_response, None, None
 
-    # max transaction count reached
-    if g_trade_transaction_counter > MAX_TRADING_TRANSACTIONS:
-        funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
-        return funding_response, None, None
+
 
     # consecutive trade failure
     if g_consecutive_trade_failure > CONSECUTIVE_FAILED_TRADE_THRESHOLD:
@@ -169,6 +168,3 @@ provider = Web3.HTTPProvider(network["provider"])
 _uniswap = Uniswap(network_config=network, provider=provider)
 
 
-# global counter variables
-g_trade_transaction_counter = 0
-g_consecutive_trade_failure = 0

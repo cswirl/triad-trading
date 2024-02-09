@@ -1,9 +1,7 @@
-import asyncio
 import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from web3.exceptions import ContractLogicError
 
@@ -14,21 +12,7 @@ from uniswap import utils
 from uniswap.constants import *
 from uniswap.config_file import *
 from app_constants import *
-
-
-ALL_TRADE_TIMEOUT = 60 * 60             # DELETE? 60 * 60 = 1 hour
-TRADE_TIMEOUT = 60 * 60
-
-# RATE LIMIT WILL DICTATE THE SLEEP TIME
-# FOR TRADE OBJECT TO QUERY THE NETWORK
-SECONDS = 10    # will control the hunting sleep in seconds
-TOTAL_ACTIVE_TRADERS = 33 * SECONDS          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
-RATE_LIMIT_PER_SECOND = 33
-
-
-#Formula: AUTO-ADJUSTING SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
-SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
-LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
+from func_triad_global import *
 
 
 indent_1 = "=" * 80
@@ -53,6 +37,7 @@ class Trader:
         self.test_fund_usd = usd_amount_in
 
         self.internal_state = TraderState.ACTIVE
+        self.idle_state_reason = "<not set>"
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
@@ -66,18 +51,19 @@ class Trader:
 
 
         self.logger(f"Greetings from {str(self)}")
-        self.logger(f"Active Traders: {TOTAL_ACTIVE_TRADERS}")
+        self.logger(f"Active Traders: {g_total_active_traders}  (inaccurate: testing for sleep calculation)")
         self.logger(f"Test Fund: {self.test_fund} {self.pathway_root_symbol} ---approx. {self.test_fund_usd} USD")
 
     async def start_trading(self):
-        result = True
+        continue_trading = True
+        while continue_trading:
+            continue_trading = await self.execute_trade()
+
+            if continue_trading:
+                await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
 
 
-        while result:
-            result = await self.execute_trade()
-            await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
-
-        self.logger(f"Terminating {self.id} : result = {result or "not set"}")
+        self.logger(f"Terminating {self.id} : result = {continue_trading or "not set"}")
         self.save_logs()
 
         self.internal_state = TraderState.DORMANT
@@ -86,6 +72,93 @@ class Trader:
         # one full trade is enough for now for study
         # return the fund back after - whether it is used or not
 
+    async def execute_trade(self):
+        global g_trade_transaction_counter
+        CONTINUE_LOOP = True
+        BREAK_LOOP = False
+        start = time.perf_counter()
+        try:
+            # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
+            await self.hunt_profit()
+            # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
+
+
+
+            # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
+            # - and then return False after enough attempts
+            response, fund_in_usd, seedFund = await self.ask_for_funding()
+            # Returning false will break the outer trading execution loop
+            if response is not FundingResponse.APPROVED:
+                return CONTINUE_LOOP
+
+            # max transaction count reached
+            if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+                self.logger("MAX_TRADING_TRANSACTIONS_EXCEEDED")
+                self.internal_state = TraderState.IDLE
+                self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+                await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
+                return CONTINUE_LOOP
+
+            self.internal_state = TraderState.TRADING
+
+            # Set a timeout of in seconds for async function
+            trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
+
+            # await self.hunt_profit(trade1_result)
+            trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
+
+            # await self.hunt_profit(trade1_result, trade2_result)
+            amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
+
+            g_trade_transaction_counter += 1
+
+            # calculate pnl and pnl percentage
+            profit_loss = seedFund and amount_out_3 - seedFund
+            profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
+
+            self.logger("### PROFIT AND LOSS ###")
+            self.logger(f"PnL : {profit_loss}")
+            self.logger(f"PnL % : {profit_loss_perc}")
+            self.logger(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger("#####################################################################")
+            self.logger(f"^^^^^^ TRIANGULAR TRADE COMPLETE ^^^^^^ {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+            self.logger("#####################################################################")
+
+            result_dict = {
+                "id": str(self),
+                "pnl": profit_loss,
+                "pnlPerc": profit_loss_perc,
+                "trade_logs": self.lifespan_logs
+            }
+
+            self.save_result_json(result_dict)
+
+        except asyncio.TimeoutError:
+            self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger("The asynchronous function timed out.")
+            # delegate to another entity program - like a 'failed trade resolver'
+            return BREAK_LOOP
+
+        except ContractLogicError as e:
+            # Handle contract-specific logic errors
+            self.logger(f"Contract logic error: {e} - data: {e.data}")
+            self.logger(f"{self} - sleep for {CONTRACT_LOGIC_ERROR_SLEEP}")
+            # todo: what to do here?
+            await asyncio.sleep(CONTRACT_LOGIC_ERROR_SLEEP)
+            return CONTINUE_LOOP
+
+        except UserWarning as w:
+            self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
+            # delegate to another entity program - like a 'failed trade resolver'
+            return BREAK_LOOP
+
+        except Exception as e:
+            self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
+            self.logger(f"Exception : {e.with_traceback(None)}")
+            # delegate to another entity program - like a 'failed trade resolver'
+            return BREAK_LOOP
+
+        return POST_TRADE_CONTINUE
 
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
         self.logger("Changing state: 'Hunting Profit'")
@@ -101,8 +174,7 @@ class Trader:
                 self.logger("Changing State: 'Trading'")
                 break
 
-            sleep_time = LIMIT_PER_DAY and SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
-            #sleep_time = (RATE_LIMIT_PER_SECOND and TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND) or DEFAULT_SLEEP_TIME
+            sleep_time = LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders / LIMIT_PER_DAY
             self.logger(f"sleep time {sleep_time}")
             await asyncio.sleep(sleep_time)
 
@@ -148,20 +220,22 @@ class Trader:
         return False
 
     async def ask_for_funding(self):
+        self.logger(indent_1 + " asking for funding")
 
         response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
-        if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
-            self.logger(f"{response}")
-            await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
 
-        elif response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
+        if response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
             self.logger(f"{response}")
-            await asyncio.sleep(NO_FUNDS_SLEEP_TIME)
+            self.internal_state = TraderState.IDLE
+            self.idle_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
+            await asyncio.sleep(CONSECUTIVE_FAILED_TRADE_SLEEP)
 
         elif response is FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN:
             self.logger(f"{response} - symbol: {self.pathway_root_symbol}")
+            await asyncio.sleep(SYMBOL_NOT_IN_STARTING_TOKEN_SLEEP)
 
+        #-------- ABOVE STATEMENTS ALLOW FOR CONTINOUS LOOP
         elif response is FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET:
             raise UserWarning(f"Coding Error: {response}")
 
@@ -169,85 +243,6 @@ class Trader:
             self.logger(f"Seed fund: {fund} ---approx. {fund_in_usd} USD")
 
         return response, fund_in_usd, fund
-
-    async def execute_trade(self):
-        start = time.perf_counter()
-        try:
-            # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
-            await self.hunt_profit()
-            # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
-
-            if self.pathway_root_symbol not in STARTING_TOKENS:
-                self.logger(f"'{self.pathway_root_symbol}' is not in STARTING TOKEN")
-                # this will continue the trading execution loop and continue logging profitable data
-                return True
-
-
-            # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
-            # - and then return False after enough attempts
-            response, fund_in_usd, seedFund = await self.ask_for_funding()
-            # Returning false will break the outer trading execution loop
-            if response is not FundingResponse.APPROVED: return False
-
-            self.internal_state = TraderState.TRADING
-
-            # Set a timeout of in seconds for async function
-            trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
-
-            #await self.hunt_profit(trade1_result)
-            trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
-
-            #await self.hunt_profit(trade1_result, trade2_result)
-            amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
-
-            # calculate pnl and pnl percentage
-            profit_loss = seedFund and amount_out_3 - seedFund
-            profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
-
-
-            self.logger("### PROFIT AND LOSS ###")
-            self.logger(f"PnL : {profit_loss}")
-            self.logger(f"PnL % : {profit_loss_perc}")
-            self.logger(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
-            self.logger("#####################################################################")
-            self.logger(f"^^^^^^ TRIANGULAR TRADE COMPLETE ^^^^^^ {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
-            self.logger("#####################################################################")
-
-            result_dict = {
-                "id": str(self),
-                "pnl": profit_loss,
-                "pnlPerc": profit_loss_perc,
-                "trade_logs": self.lifespan_logs
-            }
-
-            self.save_result_json(result_dict)
-
-        except asyncio.TimeoutError:
-            self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
-            self.logger("The asynchronous function timed out.")
-            # delegate to another entity program - like a 'failed trade resolver'
-            return False
-
-        except ContractLogicError as e:
-            # Handle contract-specific logic errors
-            self.logger(f"Contract logic error: {e} - data: {e.data}")
-            self.logger(f"{self} - sleep for {CONTRACT_LOGIC_ERROR_SLEEP}")
-            #todo: what to do here?
-            await asyncio.sleep(CONTRACT_LOGIC_ERROR_SLEEP)
-            return True
-
-        except UserWarning as w:
-            self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
-            # delegate to another entity program - like a 'failed trade resolver'
-            return False
-
-        except Exception as e:
-            self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
-            self.logger(f"Exception : {e.with_traceback(None)}")
-            # delegate to another entity program - like a 'failed trade resolver'
-            return False
-
-        return POST_TRADE_CONTINUE
 
 
     async def execute_trade_1(self):
@@ -333,36 +328,50 @@ class Trader:
 
 
 async def trader_monitor(traders_list:[Trader]):
+    global g_trade_transaction_counter
     msg = []
-    active_list = []
-    dormant_list = []
+    active_list_log = []
+    active_list_msg = []
+    dormant_list_msg = []
+    idle_list = []
+    idle_list_msg = []
     while len(traders_list) > 0:
         _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
         initial_active_traders = len(traders_list)
 
-        header1 = f"Initial Active Traders: {initial_active_traders}"
-        header2 = f"timestamp: {_now}"
-        msg.append(header1)
-        msg.append(header2)
-        # below needs to be sliced-out when being extended by msg list below
-        active_list.append(header1)
-        active_list.append(header2)
+        headings = []
+        headings.append(f"Initial Active Traders: {initial_active_traders}")
+        headings.append(f"Numbers Trades Executed: {g_trade_transaction_counter}")
+        headings.append(f"timestamp: {_now}")
 
+        # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
             if trader.internal_state == TraderState.DORMANT:
-                dormant_list.append(f"status: {trader.internal_state} - {str(trader)}")
+                dormant_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
             elif trader.internal_state == TraderState.ACTIVE or trader.internal_state == TraderState.HUNTING:
-                active_list.append(f"status: {trader.internal_state} - {str(trader)}")
+                active_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
+            elif trader.internal_state == TraderState.IDLE:
+                idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
+                idle_list.append(trader)
 
-        active_count = len(active_list) - 2
-        msg.extend(active_list[2:])
-        msg.extend(dormant_list)
+        msg.extend(headings)
+        msg.extend(idle_list_msg)
+        msg.extend(active_list_msg)
+        msg.extend(dormant_list_msg)
         msg.append("============================================================")
-        msg.append(f"{active_count} / {initial_active_traders} active traders")
-        msg.append(f"{len(dormant_list)} / {initial_active_traders} dormant traders")
+        msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
+        msg.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
+        msg.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
+        msg.append(f"g_trade_transaction_counter: {g_trade_transaction_counter}")
+        msg.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
+        msg.append(f"idling traders:")
+        for trader in idle_list:
+            msg.append(f"{trader.idle_state_reason} --- {str(trader)}")
 
-        active_list.append("============================================================")
-        active_list.append(f"{active_count} / {initial_active_traders} active traders")
+        active_list_log.extend(headings)
+        active_list_log.extend(active_list_msg)
+        active_list_msg.append("============================================================")
+        active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
 
         # save log ever 30 sec
         filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
@@ -372,10 +381,13 @@ async def trader_monitor(traders_list:[Trader]):
         utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
 
         filename = f"traders-list-status_ACTIVE_{filename_timestamp}.txt"
-        logs = "\n".join(active_list)
+        logs = "\n".join(active_list_log)
         utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
 
         msg.clear()
-        active_list.clear()
-        dormant_list.clear()
-        await asyncio.sleep(20)
+        active_list_log.clear()
+        active_list_msg.clear()
+        dormant_list_msg.clear()
+        idle_list.clear()
+        idle_list_msg.clear()
+        await asyncio.sleep(TRADER_MONITOR_SLEEP)
