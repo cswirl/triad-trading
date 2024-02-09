@@ -59,7 +59,7 @@ def calculate_seed_fund(symbol, pathway_triplet_set, stable_coin="USDC"):
     usd_amount_in = _get_funding_amount(triplet_set)
 
     if symbol in STABLE_COINS:
-        return  usd_amount_in
+        return  usd_amount_in, usd_amount_in
 
     # None if no pool of a given pair - rare tokens
     amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
@@ -71,7 +71,7 @@ def calculate_seed_fund(symbol, pathway_triplet_set, stable_coin="USDC"):
         # for now we use hard-coded 500 units for rare tokens
         return 500
 
-    return amount_out
+    return usd_amount_in, amount_out
 
 
 

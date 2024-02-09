@@ -24,12 +24,11 @@ TRADE_TIMEOUT = 60 * 60
 SECONDS = 10    # will control the hunting sleep in seconds
 TOTAL_ACTIVE_TRADERS = 33 * SECONDS          # sleep_time = TOTAL_ACTIVE_TRADERS / RATE_LIMIT_PER_SECOND
 RATE_LIMIT_PER_SECOND = 33
-DEFAULT_SLEEP_TIME = 0.3
-NO_FUNDS_SLEEP_TIME = 30                    # REMEMBER: block time is 15 sec.
+
 
 #Formula: AUTO-ADJUSTING SLEEP TIME = SECONDS_IN_A_DAY * TOTAL_ACTIVE_TRADERS / LIMIT_PER_DAY
-SECONDS_IN_A_DAY = 86400    # There are 86400 seconds in a day
-LIMIT_PER_DAY = 100000      # INFURA 100,000
+SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
+LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
 
 indent_1 = "=" * 80
@@ -48,7 +47,10 @@ class Trader:
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
-        self.test_fund = calculate_seed_fund(self.pathway_root_symbol, pathway_triplet) or 100
+
+        usd_amount_in, amount_out = calculate_seed_fund(self.pathway_root_symbol, pathway_triplet)
+        self.test_fund = amount_out
+        self.test_fund_usd = usd_amount_in
 
         self.internal_state = TraderState.ACTIVE
         self.trade1_flag = 0
@@ -59,24 +61,23 @@ class Trader:
         self.trade_logs = []
 
         self.hunt_profit_flag = True
-        self.start_trading_flag = True
 
         self.get_depth_rate = func_depth_rate
 
 
         self.logger(f"Greetings from {str(self)}")
         self.logger(f"Active Traders: {TOTAL_ACTIVE_TRADERS}")
-        self.logger(f"Test Fund: {self.test_fund}")
+        self.logger(f"Test Fund: {self.test_fund} {self.pathway_root_symbol} ---approx. {self.test_fund_usd} USD")
 
     async def start_trading(self):
         result = True
 
 
-        while result and self.start_trading_flag:
+        while result:
             result = await self.execute_trade()
+            await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
 
         self.logger(f"Terminating {self.id} : result = {result or "not set"}")
-
         self.save_logs()
 
         self.internal_state = TraderState.DORMANT
@@ -229,9 +230,10 @@ class Trader:
 
         except ContractLogicError as e:
             # Handle contract-specific logic errors
-            print(f"Contract logic error: {e} - data: {e.data}")
+            self.logger(f"Contract logic error: {e} - data: {e.data}")
+            self.logger(f"{self} - sleep for {CONTRACT_LOGIC_ERROR_SLEEP}")
             #todo: what to do here?
-            await asyncio.sleep(60)
+            await asyncio.sleep(CONTRACT_LOGIC_ERROR_SLEEP)
             return True
 
         except UserWarning as w:
@@ -245,7 +247,7 @@ class Trader:
             # delegate to another entity program - like a 'failed trade resolver'
             return False
 
-        return False
+        return POST_TRADE_CONTINUE
 
 
     async def execute_trade_1(self):
