@@ -77,12 +77,11 @@ class Trader:
         CONTINUE_LOOP = True
         BREAK_LOOP = False
         start = time.perf_counter()
+
         try:
             # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
             await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
-
-
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
@@ -174,7 +173,7 @@ class Trader:
                 self.logger("Changing State: 'Trading'")
                 break
 
-            sleep_time = LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders / LIMIT_PER_DAY
+            sleep_time = calculate_sleep_time()
             self.logger(f"sleep time {sleep_time}")
             await asyncio.sleep(sleep_time)
 
@@ -362,8 +361,10 @@ async def trader_monitor(traders_list:[Trader]):
         msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
         msg.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
         msg.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
+        msg.append(f"g_total_active_traders: {g_total_active_traders}")
         msg.append(f"g_trade_transaction_counter: {g_trade_transaction_counter}")
         msg.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
+        msg.append(f"sleep time: {calculate_sleep_time()}")
         msg.append(f"idling traders:")
         for trader in idle_list:
             msg.append(f"{trader.idle_state_reason} --- {str(trader)}")
@@ -391,3 +392,15 @@ async def trader_monitor(traders_list:[Trader]):
         idle_list.clear()
         idle_list_msg.clear()
         await asyncio.sleep(TRADER_MONITOR_SLEEP)
+
+
+def calculate_sleep_time():
+    """ AUTO-ADJUSTING - Depending on the number of active traders and infura daily limit
+
+    Formula:
+        SLEEP TIME = SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY
+
+    SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
+    LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
+    """
+    return (LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME

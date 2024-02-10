@@ -63,7 +63,7 @@ class TestTrader(unittest.TestCase):
         for trader in traders_list:
             coroutine_list.append(trader.start_trading())
 
-        trader_MODULE.g_total_active_traders = len(traders_list) * 1.5
+        trader_MODULE.g_total_active_traders = len(traders_list)
 
         await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(traders_list))
 
