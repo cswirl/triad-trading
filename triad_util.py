@@ -5,7 +5,7 @@ from uniswap import uniswap_api
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
-from func_triad_global import *
+from global_triad import *
 
 
 class FundingResponse(Enum):
@@ -106,18 +106,6 @@ def _get_funding_amount(triplet_set):
     return MINIMUM_FUNDING_IN_USD
 
 def ask_for_funding(symbol: str, pathway_triplet_set: str):
-    global g_trade_transaction_counter
-
-
-    # max transaction count reached
-    if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
-        funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
-        return funding_response, None, None
-
-    # consecutive trade failure
-    if g_consecutive_trade_failure > CONSECUTIVE_FAILED_TRADE_THRESHOLD:
-        funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
-        return funding_response, None, None
 
     # sanitation check
     if symbol not in pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER):

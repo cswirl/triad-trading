@@ -31,7 +31,7 @@ SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
 
-DEPTH_MIN_RATE = 0
+DEPTH_MIN_RATE = 20    # in percent
 MIN_SURFACE_RATE = 1.5
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000

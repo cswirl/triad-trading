@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from datetime import datetime
@@ -5,6 +6,7 @@ from enum import Enum
 
 from web3.exceptions import ContractLogicError
 
+import global_triad
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -12,7 +14,7 @@ from uniswap import utils
 from uniswap.constants import *
 from uniswap.config_file import *
 from app_constants import *
-from func_triad_global import *
+from global_triad import *
 
 
 indent_1 = "=" * 80
@@ -73,8 +75,6 @@ class Trader:
         # return the fund back after - whether it is used or not
 
     async def execute_trade(self):
-        global g_trade_transaction_counter
-
         CONTINUE_OUTER_LOOP = True
         BREAK_OUTER_LOOP = False
         start = time.perf_counter()
@@ -106,7 +106,7 @@ class Trader:
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
             async with g_lock:
-                g_trade_transaction_counter += 1
+                global_triad.g_trade_transaction_counter += 1
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -219,7 +219,18 @@ class Trader:
         self.logger(indent_1 + " asking for funding")
 
         async with g_lock:
-            response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
+            # max transaction count reached
+            if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+                funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
+                return funding_response, None, None
+
+            # consecutive trade failure
+            if g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+                funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
+                return funding_response, None, None
+
+
+        response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
         # max transaction count reached
         if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
@@ -331,7 +342,6 @@ class Trader:
 
 
 async def trader_monitor(traders_list:[Trader]):
-    global g_trade_transaction_counter
     msg = []
     active_list_log = []
     active_list_msg = []

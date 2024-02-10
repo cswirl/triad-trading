@@ -2,7 +2,7 @@ import asyncio
 import unittest
 from datetime import datetime
 
-import func_triad_global
+import global_triad
 import trader as trader_MODULE
 from trader import Trader
 from uniswap import uniswap_api, utils
@@ -10,7 +10,7 @@ import triad_util
 import triad_module
 
 from app_constants import *
-from func_triad_global import *
+from global_triad import *
 
 
 def extract_triplets():
@@ -43,10 +43,8 @@ class TestTrader(unittest.TestCase):
         asyncio.run(self.entry_point_test_trader_execute_trade())
 
     async def entry_point_test_trader_execute_trade(self):
-        global g_trade_transaction_counter
-        global g_total_active_traders
 
-
+        global_triad.g_total_active_traders = 1
 
         trader = Trader(
             "USDC_WETH_APE",
@@ -54,16 +52,9 @@ class TestTrader(unittest.TestCase):
             #triad_util.get_depth_rate,
             calculate_seed_fund=triad_util.get_seed_fund
         )
-        traders_list = [trader]
-
-
-        # cause a MAX_TRADING_TRANSACTIONS_EXCEEDED - Assigning here wont work
-        async with g_lock: #
-            g_trade_transaction_counter = MAX_TRADING_TRANSACTIONS + 1
-            g_total_active_traders = len(traders_list)
+        g_trader_list = [trader]
 
         await asyncio.gather(trader.start_trading())
-
 
 
 
@@ -73,17 +64,20 @@ class TestTrader(unittest.TestCase):
     async def entry_point_multiple_trader_instance(self):
 
 
-        traders_list = self._traders_list()
+        global_triad.g_trader_list = self._traders_list()
+
+        # testing
+        global_triad.g_total_active_traders = len(g_trader_list)
 
         coroutine_list = []
-        for trader in traders_list:
+        for trader in g_trader_list:
             coroutine_list.append(trader.start_trading())
 
-        g_total_active_traders = len(traders_list)
-
-        await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(traders_list))
+        await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(global_triad.g_trader_list))
 
     def _traders_list(self):
+
+
         triplets_set, triplets_list = extract_triplets()
 
         pathway_triplet_list = []
