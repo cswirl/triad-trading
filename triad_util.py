@@ -1,9 +1,7 @@
 from enum import Enum
-
 from web3 import Web3
 
 from uniswap import uniswap_api
-from uniswap.token_pair import Token
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
@@ -109,8 +107,7 @@ def _get_funding_amount(triplet_set):
 
 def ask_for_funding(symbol: str, pathway_triplet_set: str):
     global g_trade_transaction_counter
-    # see app constant
-    # MAX_TRADING_COUNT = 5  # losing gas fee for every reverted / fail triangular trade
+
 
     # max transaction count reached
     if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:

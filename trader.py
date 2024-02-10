@@ -74,8 +74,9 @@ class Trader:
 
     async def execute_trade(self):
         global g_trade_transaction_counter
-        CONTINUE_LOOP = True
-        BREAK_LOOP = False
+
+        CONTINUE_OUTER_LOOP = True
+        BREAK_OUTER_LOOP = False
         start = time.perf_counter()
 
         try:
@@ -85,18 +86,13 @@ class Trader:
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
+
             response, fund_in_usd, seedFund = await self.ask_for_funding()
+
             # Returning false will break the outer trading execution loop
             if response is not FundingResponse.APPROVED:
-                return CONTINUE_LOOP
+                return CONTINUE_OUTER_LOOP
 
-            # max transaction count reached
-            if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
-                self.logger("MAX_TRADING_TRANSACTIONS_EXCEEDED")
-                self.internal_state = TraderState.IDLE
-                self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
-                await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
-                return CONTINUE_LOOP
 
             self.internal_state = TraderState.TRADING
 
@@ -109,7 +105,8 @@ class Trader:
             # await self.hunt_profit(trade1_result, trade2_result)
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
-            g_trade_transaction_counter += 1
+            async with g_lock:
+                g_trade_transaction_counter += 1
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -136,7 +133,7 @@ class Trader:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
             self.logger("The asynchronous function timed out.")
             # delegate to another entity program - like a 'failed trade resolver'
-            return BREAK_LOOP
+            return BREAK_OUTER_LOOP
 
         except ContractLogicError as e:
             # Handle contract-specific logic errors
@@ -144,18 +141,18 @@ class Trader:
             self.logger(f"{self} - sleep for {CONTRACT_LOGIC_ERROR_SLEEP}")
             # todo: what to do here?
             await asyncio.sleep(CONTRACT_LOGIC_ERROR_SLEEP)
-            return CONTINUE_LOOP
+            return CONTINUE_OUTER_LOOP
 
         except UserWarning as w:
             self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
             # delegate to another entity program - like a 'failed trade resolver'
-            return BREAK_LOOP
+            return BREAK_OUTER_LOOP
 
         except Exception as e:
             self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
             self.logger(f"Exception : {e.with_traceback(None)}")
             # delegate to another entity program - like a 'failed trade resolver'
-            return BREAK_LOOP
+            return BREAK_OUTER_LOOP
 
         return POST_TRADE_CONTINUE
 
@@ -221,10 +218,17 @@ class Trader:
     async def ask_for_funding(self):
         self.logger(indent_1 + " asking for funding")
 
-        response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
+        async with g_lock:
+            response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
+        # max transaction count reached
+        if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
+            self.logger(f"{response}")
+            self.internal_state = TraderState.IDLE
+            self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+            await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
 
-        if response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
+        elif response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
             self.logger(f"{response}")
             self.internal_state = TraderState.IDLE
             self.idle_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
@@ -403,4 +407,6 @@ def calculate_sleep_time():
     SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
     LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
     """
-    return (LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
+
+    sleep_time = (LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
+    return sleep_time

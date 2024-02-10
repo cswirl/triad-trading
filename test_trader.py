@@ -2,6 +2,7 @@ import asyncio
 import unittest
 from datetime import datetime
 
+import func_triad_global
 import trader as trader_MODULE
 from trader import Trader
 from uniswap import uniswap_api, utils
@@ -9,7 +10,7 @@ import triad_util
 import triad_module
 
 from app_constants import *
-
+from func_triad_global import *
 
 
 def extract_triplets():
@@ -39,31 +40,46 @@ def extract_triplets():
 class TestTrader(unittest.TestCase):
 
     def test_trader_execute_trade(self):
-        asyncio.run(self._test_trader_execute_trade())
+        asyncio.run(self.entry_point_test_trader_execute_trade())
 
-    async def _test_trader_execute_trade(self):
-        # triad_util.get_depth_rate,
+    async def entry_point_test_trader_execute_trade(self):
+        global g_trade_transaction_counter
+        global g_total_active_traders
+
+
+
         trader = Trader(
             "USDC_WETH_APE",
-            triad_util.get_depth_rate,
+            self._test_depth_rate,
+            #triad_util.get_depth_rate,
             calculate_seed_fund=triad_util.get_seed_fund
         )
         traders_list = [trader]
 
-        await asyncio.gather(trader.start_trading(), self.handle_user_input(traders_list))
+
+        # cause a MAX_TRADING_TRANSACTIONS_EXCEEDED - Assigning here wont work
+        async with g_lock: #
+            g_trade_transaction_counter = MAX_TRADING_TRANSACTIONS + 1
+            g_total_active_traders = len(traders_list)
+
+        await asyncio.gather(trader.start_trading())
+
+
 
 
     def test_multiple_trader_instance(self):
-        asyncio.run(self._multiple_trader_instance())
+        asyncio.run(self.entry_point_multiple_trader_instance())
 
-    async def _multiple_trader_instance(self):
+    async def entry_point_multiple_trader_instance(self):
+
+
         traders_list = self._traders_list()
 
         coroutine_list = []
         for trader in traders_list:
             coroutine_list.append(trader.start_trading())
 
-        trader_MODULE.g_total_active_traders = len(traders_list)
+        g_total_active_traders = len(traders_list)
 
         await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(traders_list))
 
