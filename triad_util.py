@@ -11,6 +11,7 @@ from func_triad_global import *
 
 
 class FundingResponse(Enum):
+    ERROR = 0
     APPROVED = 1
     MAX_TRADING_TRANSACTIONS_EXCEEDED = 2
     CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED = 3
@@ -51,26 +52,17 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
 
     return amount_out
 
-def calculate_seed_fund(symbol, pathway_triplet_set, stable_coin="USDC"):
-
-    stable_coin = uniswap_api.get_token(stable_coin)
-    token1 = uniswap_api.get_token(symbol)
+def get_seed_fund(symbol, pathway_triplet_set):
 
     triplet_set = set(pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER))
     usd_amount_in = _get_funding_amount(triplet_set)
 
-    if symbol in STABLE_COINS:
-        return  usd_amount_in, usd_amount_in
-
-    # None if no pool of a given pair - rare tokens
-    amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
+    # None if no pool for a given pair - rare tokens
+    # None is something went wrong
+    amount_out = convert_usd_to_token(usd_amount_in, symbol) or None
 
     if amount_out is None:
-        #todo: calculate_seed_fund
-        # try using path: usd -> weth -> rare token
-        # but this is to be solved next since we are not interested to start trade with rare tokens
-        # for now we use hard-coded 500 units for rare tokens
-        return 500
+        return None, None
 
     return usd_amount_in, amount_out
 
@@ -120,8 +112,14 @@ def ask_for_funding(symbol: str, pathway_triplet_set: str):
     # see app constant
     # MAX_TRADING_COUNT = 5  # losing gas fee for every reverted / fail triangular trade
 
-    if symbol not in STARTING_TOKENS:
-        funding_response = FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN
+    # max transaction count reached
+    if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+        funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
+        return funding_response, None, None
+
+    # consecutive trade failure
+    if g_consecutive_trade_failure > CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+        funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
         return funding_response, None, None
 
     # sanitation check
@@ -129,36 +127,57 @@ def ask_for_funding(symbol: str, pathway_triplet_set: str):
         funding_response = FundingResponse.SYMBOL_NOT_IN_PATHWAY_TRIPLET
         return funding_response, None, None
 
-
-
-    # consecutive trade failure
-    if g_consecutive_trade_failure > CONSECUTIVE_FAILED_TRADE_THRESHOLD:
-        funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
+    if symbol not in STARTING_TOKENS:
+        funding_response = FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN
         return funding_response, None, None
 
     # flash swap do not need the stuffs below, we use the _get_funding_amount()
-    # must check the account balance in a ethereum wallet - use uniswapV3 instance
+    #
+    # Must check the account balance in a ethereum wallet - use uniswapV3 instance
     # $100 USD or in percentage of available funds like 5%, 10%, whichever is greater?
     triplet_set = set(pathway_triplet_set.split(uniswap_api.PATH_TRIPLET_DELIMITER))
     fund = _get_funding_amount(triplet_set)
 
     amount_in_usd = fund or MINIMUM_FUNDING_IN_USD  # minimum is 10 as of now
-    amount_out = get_token_price_in_usd(symbol, usd_amount=amount_in_usd)
+    amount_out = convert_usd_to_token(amount_in_usd, symbol)
+
+    if amount_out is None:
+        return FundingResponse.ERROR, None, None
 
     return FundingResponse.APPROVED, amount_in_usd, amount_out
 
-def get_token_price_in_usd(symbol, stable_coin="USDC", usd_amount=100):
-    stable_coin = uniswap_api.get_token(stable_coin)
-    token1 = uniswap_api.get_token(symbol)
+def convert_usd_to_token(usd_amount, token_symbol_out):
+    """
+    Convert a USD amount to equivalent token using a live market exchange
 
-    usd_amount_in = usd_amount
-    fee = 3000
+    Caveat:
+        Rare tokens with no direct pair with stable coins may result in very unfavorable pricing
 
-    is_stables = symbol in STABLE_COINS
-    if is_stables: return usd_amount_in
+    :param token_symbol_out (str): symbol of the token to be received
+    :param usd_amount: input in USD amount
+    :return (float | None): amount_out
+    """
+    # sanitation check
+    if token_symbol_out in STABLE_COINS: return usd_amount
 
-    # None if no pool of a given pair - rare tokens
-    amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount_in)
+    token1 = uniswap_api.get_token(token_symbol_out)
+    amount_out = None
+    # try all stable coins - STABLE_COINS are already arranged in preferred order
+    for coin in STABLE_COINS:
+        stable_coin = uniswap_api.get_token(coin)
+        amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount)
+        if amount_out:
+            return amount_out
+
+    # If the above didn't work, try STABLES-->WETH--> token out
+    # todo: compare results and return the maximum? - waste of infura query limit
+    # Low liquidity pools paired with some stablecoins may give unfavorable exchange rate for the token
+    if amount_out is None:
+        weth = uniswap_api.get_token("WETH")
+        for coin in STABLE_COINS:
+            stable_coin = uniswap_api.get_token(coin)
+            swap1 = _uniswap.quote_price_input(stable_coin, weth, usd_amount)
+            amount_out = _uniswap.quote_price_input(weth, token1, swap1) if swap1 else None
 
     return amount_out
 

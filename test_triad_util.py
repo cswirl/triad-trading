@@ -6,20 +6,33 @@ from app_constants import *
 
 class TestTriadUtil(unittest.TestCase):
 
+    def test_convert_usd_to_token(self):
+        usd_amount = 100
+
+        # Non - stable coins
+        result = triad_util.convert_usd_to_token(usd_amount, "WETH")
+        assert result is not None
+
+        # stable coin
+        result = triad_util.convert_usd_to_token(usd_amount, "DAI")
+        assert result == usd_amount
+
+        # Rare token
+        result = triad_util.convert_usd_to_token(usd_amount, "RNG")
+        assert result is not None
+
+        # Non-existent coin
+        result = triad_util.convert_usd_to_token(usd_amount, "random coin fdsa")
+        assert result is None
+
+
+
     def test_calculate_seed_fund(self):
 
         t_symbol = "UNI"
-        usd_amount = 10
-        output = triad_util.calculate_seed_fund(t_symbol, usd_amount=usd_amount)
-        print(f"{usd_amount} USD = {output} {t_symbol}")
+        usd_amount, amount_out = triad_util.get_seed_fund(t_symbol, "WETH_UNI_USDC")
+        print(f"{usd_amount} USD = {amount_out} {t_symbol}")
 
-    def test_ask_for_funding(self):
-        t_symbol = "UNI"
-
-        usd_amount, output = triad_util.ask_for_funding(t_symbol)
-        print(f"{usd_amount} USD = {output} {t_symbol}")
-
-        self.test_calculate_seed_fund()
 
     def test_get_funding_amount(self):
         """
@@ -104,3 +117,5 @@ class TestTriadUtil(unittest.TestCase):
         assert a == triad_util.FundingResponse.APPROVED
         assert b == FUNDING_TIER_3  # WETH
         print(f"{b} USD in = {c} {symbol} out")  # amount based on market rate
+
+

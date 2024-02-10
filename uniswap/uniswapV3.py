@@ -91,9 +91,6 @@ class Uniswap:
         sqrtPriceLimitX96 = 0
 
         try:
-            # print(w3.api)
-            # print(quoter.functions.factory().call())
-
             # Call a function on the contract that might raise an error
             price = self.quoter.functions.quoteExactInputSingle(
                 token0.id,
@@ -103,16 +100,12 @@ class Uniswap:
                 sqrtPriceLimitX96
             ).call()
 
-            #print(f"quoted price from quoter: {price / 10 ** token1.decimals}")
-
             return price / 10 ** token1.decimals
 
         except ContractLogicError as e:
             # Handle contract-specific logic errors
             print(f"Contract logic error: {e} - data: {e.data}")
-            raise e
 
         except Exception as e:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
-            raise e

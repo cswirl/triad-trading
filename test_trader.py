@@ -46,7 +46,7 @@ class TestTrader(unittest.TestCase):
         trader = Trader(
             "USDC_WETH_APE",
             triad_util.get_depth_rate,
-            calculate_seed_fund=triad_util.calculate_seed_fund
+            calculate_seed_fund=triad_util.get_seed_fund
         )
         traders_list = [trader]
 
@@ -91,7 +91,7 @@ class TestTrader(unittest.TestCase):
             trader = Trader(
                 pathway_triplet,
                 triad_util.get_depth_rate,
-                calculate_seed_fund=triad_util.calculate_seed_fund
+                calculate_seed_fund=triad_util.get_seed_fund
             )
             traders_list.append(trader)
 
