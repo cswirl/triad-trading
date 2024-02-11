@@ -22,11 +22,17 @@ TRADER_MONITOR_SLEEP = 10
 TRADER_NUMBER_OF_REQUEST_PER_ROUND = 4
 
 # INFURA NETWORK QUERY LIMIT
-#  -
-RATE_LIMIT_PER_SECOND = 33    # not-in-use: sleep time = g_total_active_traders / RATE_LIMIT_PER_SECOND
+#  100,000 in a day
+#  33 in a second
 
-#Formula-in-use: AUTO-ADJUSTING
-# SLEEP TIME = SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY
+#Formulas: AUTO-ADJUSTING
+# a single trader, must not exceed 33 request in a second
+#   sleep time = 1 second / 33
+#
+#  Therefore, sleep time = total_active_traders / RATE_LIMIT_PER_SECOND
+RATE_LIMIT_PER_SECOND = 33
+
+# SLEEP TIME = SECONDS_IN_A_DAY * total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY
 SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 

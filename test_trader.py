@@ -62,7 +62,7 @@ class TestTrader(unittest.TestCase):
         await asyncio.gather(trader.start_trading())
 
         #assert trader.internal_state == trader_MODULE.TraderState.IDLE
-        #assert trader.idle_state_reason == "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+        #assert trader.internal_state_reason == "MAX_TRADING_TRANSACTIONS_EXCEEDED"
 
 
 
