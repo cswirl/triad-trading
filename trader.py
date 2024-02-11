@@ -61,7 +61,6 @@ class Trader:
                 await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
 
 
-
         self.internal_state = TraderState.DORMANT
         self.internal_state_reason = "FLAGGED TO DISCONTINUE"
         self.logger(f"Changing State to DORMANT : {self}")
@@ -89,7 +88,6 @@ class Trader:
             # Returning false will break the outer trading execution loop
             if response is not FundingResponse.APPROVED:
                 return CONTINUE_OUTER_LOOP
-
 
             self.internal_state = TraderState.TRADING
 
@@ -233,6 +231,7 @@ class Trader:
 
             # todo: consecutive trade failures - For all traders
             # This is a little complicated, it will be dealt with at a later time
+            # - since transaction result is not known immediately
             # For now, after reaching the MAX_TRADING_TRANSACTIONS, the program should terminate
             if gt.g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
                 self.internal_state = TraderState.IDLE
