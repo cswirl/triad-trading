@@ -167,6 +167,7 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
     return amount_out
 
 
+
 network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
 _uniswap = Uniswap(network_config=network, provider=provider)

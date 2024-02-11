@@ -17,7 +17,7 @@ MAX_TRADING_TRANSACTIONS_SLEEP = 60 * X
 CONSECUTIVE_FAILED_TRADE_SLEEP = 60 * X
 SYMBOL_NOT_IN_STARTING_TOKEN_SLEEP = 30
 
-TRADER_MONITOR_SLEEP = 3
+TRADER_MONITOR_SLEEP = 10
 
 TRADER_NUMBER_OF_REQUEST_PER_ROUND = 4
 
@@ -31,13 +31,13 @@ SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
 
-DEPTH_MIN_RATE = 20    # in percent
+DEPTH_MIN_RATE = 0    # in percent
 MIN_SURFACE_RATE = 1.5
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
 
 
-MAX_TRADING_TRANSACTIONS = 1  # losing gas fee for every reverted / fail triangular trade
+MAX_TRADING_TRANSACTIONS = 2  # losing gas fee for every reverted / fail triangular trade
 CONSECUTIVE_FAILED_TRADE_THRESHOLD = 3
 
 # FUNDING_TIER_0 = 500    #all stable coins

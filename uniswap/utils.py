@@ -20,12 +20,13 @@ def save_json_to_file(data, file_path):
         print(f"error saving json data to {file_path}: {e}")
 
 
-def save_text_file(data, file_path):
+def save_text_file(data, file_path, quiet_mode = False):
     try:
         # Save the text data to the file
         with open(file_path, 'w') as text_file:
             text_file.write(data)
-        print(f"Text data saved successfully to: {file_path}")
+
+        quiet_mode or print(f"Text data saved successfully to: {file_path}")
 
     except Exception as e:
         print(f"error saving text data to {file_path}: {e}")

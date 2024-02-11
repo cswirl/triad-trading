@@ -6,16 +6,13 @@ from enum import Enum
 
 from web3.exceptions import ContractLogicError
 
-import global_triad
+import global_triad as gt
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
 
 from uniswap.constants import *
-from uniswap.config_file import *
 from app_constants import *
-from global_triad import *
-
 
 indent_1 = "=" * 80
 
@@ -51,9 +48,8 @@ class Trader:
 
         self.get_depth_rate = func_depth_rate
 
-
         self.logger(f"Greetings from {str(self)}")
-        self.logger(f"Active Traders: {g_total_active_traders}  (inaccurate: testing for sleep calculation)")
+        self.logger(f"Active Traders: {gt.g_total_active_traders}  (inaccurate: testing for sleep calculation)")
         self.logger(f"Test Fund: {self.test_fund} {self.pathway_root_symbol} ---approx. {self.test_fund_usd} USD")
 
     async def start_trading(self):
@@ -63,7 +59,6 @@ class Trader:
 
             if continue_trading:
                 await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
-
 
         self.logger(f"Terminating {self.id} : result = {continue_trading or "not set"}")
         self.save_logs()
@@ -105,8 +100,8 @@ class Trader:
             # await self.hunt_profit(trade1_result, trade2_result)
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
-            async with g_lock:
-                global_triad.g_trade_transaction_counter += 1
+            async with gt.g_lock:
+                gt.g_trade_transaction_counter += 1
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -218,34 +213,37 @@ class Trader:
     async def ask_for_funding(self):
         self.logger(indent_1 + " asking for funding")
 
-        async with g_lock:
+        async with gt.g_lock:
             # max transaction count reached
-            if g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+                self.internal_state = TraderState.IDLE
+                self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+                self.logger(f"MAX_TRADING_TRANSACTIONS_EXCEEDED")
+                self.logger(f"sleep time : {MAX_TRADING_TRANSACTIONS_SLEEP}")
+                await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
+                # upon wake-up resume state to active
+                self.internal_state = TraderState.ACTIVE
+                self.idle_state_reason = None
+                self.logger(f"Waking-up - Changing State to Active")
                 funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
                 return funding_response, None, None
 
             # consecutive trade failure
-            if g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+            if gt.g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
+                self.internal_state = TraderState.IDLE
+                self.idle_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
+                self.logger(f"CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED")
+                self.logger(f"sleep time : {CONSECUTIVE_FAILED_TRADE_SLEEP}")
+                await asyncio.sleep(CONSECUTIVE_FAILED_TRADE_SLEEP)
                 funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
                 return funding_response, None, None
 
-
+        # In Traditional finance, we would allocate this using the available funds in our account
+        # since we are using flash swaps, this method is peculiar
         response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
-        # max transaction count reached
-        if response is FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED:
-            self.logger(f"{response}")
-            self.internal_state = TraderState.IDLE
-            self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
-            await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
-
-        elif response is FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED:
-            self.logger(f"{response}")
-            self.internal_state = TraderState.IDLE
-            self.idle_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
-            await asyncio.sleep(CONSECUTIVE_FAILED_TRADE_SLEEP)
-
-        elif response is FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN:
+        if response is FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN:
+            self.logger(f"sleep time : {SYMBOL_NOT_IN_STARTING_TOKEN_SLEEP}")
             self.logger(f"{response} - symbol: {self.pathway_root_symbol}")
             await asyncio.sleep(SYMBOL_NOT_IN_STARTING_TOKEN_SLEEP)
 
@@ -341,7 +339,7 @@ class Trader:
 
 
 
-async def trader_monitor(traders_list:[Trader]):
+async def trader_monitor(traders_list:[Trader], counter = 0):
     msg = []
     active_list_log = []
     active_list_msg = []
@@ -354,8 +352,9 @@ async def trader_monitor(traders_list:[Trader]):
 
         headings = []
         headings.append(f"Initial Active Traders: {initial_active_traders}")
-        headings.append(f"Numbers Trades Executed: {g_trade_transaction_counter}")
+        headings.append(f"Numbers Trades Executed: {gt.g_trade_transaction_counter}")
         headings.append(f"timestamp: {_now}")
+        headings.append(f"refresh every: {TRADER_MONITOR_SLEEP} seconds")
 
         # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
@@ -375,10 +374,10 @@ async def trader_monitor(traders_list:[Trader]):
         msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
         msg.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
         msg.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
-        msg.append(f"g_total_active_traders: {g_total_active_traders}")
-        msg.append(f"g_trade_transaction_counter: {g_trade_transaction_counter}")
+        msg.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
+        msg.append(f"g_trade_transaction_counter: {gt.g_trade_transaction_counter}")
         msg.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
-        msg.append(f"sleep time: {calculate_sleep_time()}")
+        msg.append(f"sleep time: {calculate_sleep_time()} seconds")
         msg.append(f"idling traders:")
         for trader in idle_list:
             msg.append(f"{trader.idle_state_reason} --- {str(trader)}")
@@ -393,11 +392,13 @@ async def trader_monitor(traders_list:[Trader]):
 
         filename = f"traders-list-status_{filename_timestamp}.txt"
         logs = "\n".join(msg)
-        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename), quiet_mode=(counter > 0))
 
         filename = f"traders-list-status_ACTIVE_{filename_timestamp}.txt"
         logs = "\n".join(active_list_log)
-        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename))
+        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename), quiet_mode=(counter > 0))
+
+        counter += 1
 
         msg.clear()
         active_list_log.clear()
@@ -405,6 +406,7 @@ async def trader_monitor(traders_list:[Trader]):
         dormant_list_msg.clear()
         idle_list.clear()
         idle_list_msg.clear()
+
         await asyncio.sleep(TRADER_MONITOR_SLEEP)
 
 
@@ -417,6 +419,6 @@ def calculate_sleep_time():
     SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
     LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
     """
-
-    sleep_time = (LIMIT_PER_DAY and SECONDS_IN_A_DAY * g_total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
+    total_active_traders = len([x for x in gt.g_trader_list if x.internal_state != TraderState.DORMANT])
+    sleep_time = (LIMIT_PER_DAY and SECONDS_IN_A_DAY * total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
     return sleep_time

@@ -2,7 +2,7 @@ import asyncio
 import unittest
 from datetime import datetime
 
-import global_triad
+import global_triad as g
 import trader as trader_MODULE
 from trader import Trader
 from uniswap import uniswap_api, utils
@@ -10,7 +10,6 @@ import triad_util
 import triad_module
 
 from app_constants import *
-from global_triad import *
 
 
 def extract_triplets():
@@ -44,7 +43,12 @@ class TestTrader(unittest.TestCase):
 
     async def entry_point_test_trader_execute_trade(self):
 
-        global_triad.g_total_active_traders = 1
+        # # pre-condition variables - not working
+        # ac.MAX_TRADING_TRANSACTIONS = 0
+        # ac.MAX_TRADING_TRANSACTIONS_SLEEP = 30
+        # ac.DEPTH_MIN_RATE = 0
+
+        g.g_total_active_traders = 1
 
         trader = Trader(
             "USDC_WETH_APE",
@@ -52,9 +56,13 @@ class TestTrader(unittest.TestCase):
             #triad_util.get_depth_rate,
             calculate_seed_fund=triad_util.get_seed_fund
         )
-        g_trader_list = [trader]
+        g.g_trader_list = [trader]
 
+        #g.g_trade_transaction_counter = MAX_TRADING_TRANSACTIONS + 1
         await asyncio.gather(trader.start_trading())
+
+        #assert trader.internal_state == trader_MODULE.TraderState.IDLE
+        #assert trader.idle_state_reason == "MAX_TRADING_TRANSACTIONS_EXCEEDED"
 
 
 
@@ -63,20 +71,18 @@ class TestTrader(unittest.TestCase):
 
     async def entry_point_multiple_trader_instance(self):
 
-
-        global_triad.g_trader_list = self._traders_list()
+        g.g_trader_list = self._traders_list()
 
         # testing
-        global_triad.g_total_active_traders = len(g_trader_list)
+        g.g_total_active_traders = len(g.g_trader_list)
 
         coroutine_list = []
-        for trader in g_trader_list:
+        for trader in g.g_trader_list:
             coroutine_list.append(trader.start_trading())
 
-        await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(global_triad.g_trader_list))
+        await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(g.g_trader_list))
 
     def _traders_list(self):
-
 
         triplets_set, triplets_list = extract_triplets()
 
@@ -95,9 +101,10 @@ class TestTrader(unittest.TestCase):
         pathway_triplet_list_LIMITED = pathway_triplet_list[0:limit] if len(
             pathway_triplet_list) >= limit else pathway_triplet_list
 
+        g.g_total_active_traders = len(pathway_triplet_list_LIMITED)
+
         traders_list = []
         for pathway_triplet in pathway_triplet_list_LIMITED:
-            # triad_util.get_depth_rate,
             trader = Trader(
                 pathway_triplet,
                 triad_util.get_depth_rate,
