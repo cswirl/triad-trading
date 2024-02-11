@@ -36,7 +36,7 @@ class Trader:
         self.test_fund_usd = usd_amount_in
 
         self.internal_state = TraderState.ACTIVE
-        self.idle_state_reason = "<not set>"
+        self.internal_state_reason = "<not set>"
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
@@ -60,10 +60,12 @@ class Trader:
             if continue_trading:
                 await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
 
-        self.logger(f"Terminating {self.id} : result = {continue_trading or "not set"}")
-        self.save_logs()
+
 
         self.internal_state = TraderState.DORMANT
+        self.internal_state_reason = "FLAGGED TO DISCONTINUE"
+        self.logger(f"Changing State to DORMANT : {self}")
+        self.save_logs()
 
         # exit program - do not forget to log it - json file is sufficient - use timestamp in file name
         # one full trade is enough for now for study
@@ -217,21 +219,24 @@ class Trader:
             # max transaction count reached
             if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
                 self.internal_state = TraderState.IDLE
-                self.idle_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+                self.internal_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
                 self.logger(f"MAX_TRADING_TRANSACTIONS_EXCEEDED")
                 self.logger(f"sleep time : {MAX_TRADING_TRANSACTIONS_SLEEP}")
                 await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
+                #
                 # upon wake-up resume state to active
                 self.internal_state = TraderState.ACTIVE
-                self.idle_state_reason = None
+                self.internal_state_reason = None
                 self.logger(f"Waking-up - Changing State to Active")
                 funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
                 return funding_response, None, None
 
-            # consecutive trade failure
+            # todo: consecutive trade failures - For all traders
+            # This is a little complicated, it will be dealt with at a later time
+            # For now, after reaching the MAX_TRADING_TRANSACTIONS, the program should terminate
             if gt.g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
                 self.internal_state = TraderState.IDLE
-                self.idle_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
+                self.internal_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
                 self.logger(f"CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED")
                 self.logger(f"sleep time : {CONSECUTIVE_FAILED_TRADE_SLEEP}")
                 await asyncio.sleep(CONSECUTIVE_FAILED_TRADE_SLEEP)
@@ -239,7 +244,7 @@ class Trader:
                 return funding_response, None, None
 
         # In Traditional finance, we would allocate this using the available funds in our account
-        # since we are using flash swaps, this method is peculiar
+        # since we are using flash swaps, no need to allocate since fund is loaned - this method is peculiar
         response, fund_in_usd, fund = triad_util.ask_for_funding(self.pathway_root_symbol, self.pathway_triplet)
 
         if response is FundingResponse.SYMBOL_NOT_IN_STARTING_TOKEN:
@@ -346,6 +351,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
     dormant_list_msg = []
     idle_list = []
     idle_list_msg = []
+
     while len(traders_list) > 0:
         _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
         initial_active_traders = len(traders_list)
@@ -359,11 +365,11 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
             if trader.internal_state == TraderState.DORMANT:
-                dormant_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
+                dormant_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
             elif trader.internal_state == TraderState.ACTIVE or trader.internal_state == TraderState.HUNTING:
                 active_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
             elif trader.internal_state == TraderState.IDLE:
-                idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
+                idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
                 idle_list.append(trader)
 
         msg.extend(headings)
@@ -380,12 +386,19 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         msg.append(f"sleep time: {calculate_sleep_time()} seconds")
         msg.append(f"idling traders:")
         for trader in idle_list:
-            msg.append(f"{trader.idle_state_reason} --- {str(trader)}")
+            msg.append(f"{trader.internal_state_reason} --- {str(trader)}")
 
         active_list_log.extend(headings)
         active_list_log.extend(active_list_msg)
         active_list_msg.append("============================================================")
         active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
+
+        # TODO: exiting program when MAX_TRADING_TRANSACTIONS_EXCEEDED
+        async with gt.g_lock:
+            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+                msg.append(f"Exiting the program : MAX_TRADING_TRANSACTIONS_EXCEEDED")
+                exit_program = True
+
 
         # save log ever 30 sec
         filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
