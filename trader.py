@@ -1,6 +1,7 @@
 import asyncio
 import time
 import uuid
+import traceback
 from datetime import datetime
 from enum import Enum
 
@@ -59,7 +60,6 @@ class Trader:
 
             if continue_trading:
                 await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
-
 
         self.internal_state = TraderState.DORMANT
         self.internal_state_reason = "FLAGGED TO DISCONTINUE"
@@ -140,12 +140,13 @@ class Trader:
 
         except UserWarning as w:
             self.logger(f"Incomplete trade - {w} - {time.perf_counter() - start:0.2f} seconds")
+            self.logger((f"User warning : {traceback.format_exc()}"))
             # delegate to another entity program - like a 'failed trade resolver'
             return BREAK_OUTER_LOOP
 
         except Exception as e:
             self.logger(f"Incomplete trade - Generic Error : elapsed in {time.perf_counter() - start:0.2f} seconds")
-            self.logger(f"Exception : {e.with_traceback(None)}")
+            self.logger(f"Exception : {traceback.format_exc()}")
             # delegate to another entity program - like a 'failed trade resolver'
             return BREAK_OUTER_LOOP
 
