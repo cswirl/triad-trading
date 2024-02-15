@@ -1,6 +1,7 @@
+from web3 import Web3
 
 MAINNET_PROVIDER = "https://mainnet.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
-TESTNET_PROVIDER = "https://sepolia.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
+SEPOLIA_PROVIDER = "https://sepolia.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
 
 
 FACTORY_ADDRESS = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
@@ -36,22 +37,26 @@ TickSpacing = {
 }
 
 Networks = {
-    "testnet": {
-        "provider": TESTNET_PROVIDER,
+    "sepolia": {
+        "provider": SEPOLIA_PROVIDER,
+        "factory":  Web3.to_checksum_address("0x0227628f3F023bb0B980b67D528571c95c6DaC1c"),
+        "router": Web3.to_checksum_address("0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"),
         "quoter": {
-            "address": QUOTER_ADDRESS,
-            "abiName": "quoter"
+            "address": Web3.to_checksum_address("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3"),
+            "abiName": "sepolia_quoter"
         },
         "flashLoan": {
-            "address": FLASH_LOAN_ADDRESS,
+            "address": Web3.to_checksum_address("0x2a4d0eD2b3ED22373018C46C4Db0f488A7250dD0"),
             "abiName": "flash_loan"
         }
 
     },
     "mainnet": {
         "provider": MAINNET_PROVIDER,
+        "factory": Web3.to_checksum_address("0x1F98431c8aD98523631AE4a59f267346ea31F984"),
+        "router": Web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564"),
         "quoter": {
-            "address": QUOTER_ADDRESS,
+            "address": Web3.to_checksum_address("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"),
             "abiName": "quoter"
         }
     }

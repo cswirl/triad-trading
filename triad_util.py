@@ -1,12 +1,12 @@
 import json
 from enum import Enum
+import web3
 from web3 import Web3
 
 from uniswap import uniswap_api
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
-from global_triad import *
 
 
 class FundingResponse(Enum):
@@ -47,7 +47,7 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     token0 = uniswap_api.get_token(token0_symbol)
     token1 = uniswap_api.get_token(token1_symbol)
 
-    amount_out = _uniswap.quote_price_input(token0, token1, amount_in)
+    amount_out = uniswap.quote_price_input(token0, token1, amount_in)
 
     return amount_out
 
@@ -151,7 +151,7 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
     # try all stable coins - STABLE_COINS are already arranged in preferred order
     for coin in STABLE_COINS:
         stable_coin = uniswap_api.get_token(coin)
-        amount_out = _uniswap.quote_price_input(stable_coin, token1, usd_amount)
+        amount_out = uniswap.quote_price_input(stable_coin, token1, usd_amount)
         if amount_out:
             return amount_out
 
@@ -162,8 +162,8 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
         weth = uniswap_api.get_token("WETH")
         for coin in STABLE_COINS:
             stable_coin = uniswap_api.get_token(coin)
-            swap1 = _uniswap.quote_price_input(stable_coin, weth, usd_amount)
-            amount_out = _uniswap.quote_price_input(weth, token1, swap1) if swap1 else None
+            swap1 = uniswap.quote_price_input(stable_coin, weth, usd_amount)
+            amount_out = uniswap.quote_price_input(weth, token1, swap1) if swap1 else None
 
     return amount_out
 
@@ -182,9 +182,10 @@ def load_keys_from_file():
         print(f"error decoding JSON in file '{file_path}'.")
 
 
-
-network = uniswap_api.get_network("mainnet")
+keys = load_keys_from_file()
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
-_uniswap = Uniswap(network_config=network, provider=provider)
+w3 = Web3(provider)
+uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
 
 

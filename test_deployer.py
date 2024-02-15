@@ -1,12 +1,13 @@
+import warnings
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
 import unittest
 from collections import namedtuple
 
 from eth_utils import keccak
 from eth_abi import encode
 
-from uniswap import uniswap_api
-from uniswap.uniswapV3 import Uniswap
-
+import triad_util as tu
 
 from web3 import Web3
 
@@ -16,9 +17,9 @@ rlb = Web3.to_checksum_address("0x046EeE2cc3188071C02BfC1745A6b17c656e3f3d")
 
 CryptoToken = namedtuple("CryptoToken", ["hex_address", "id", "symbol", "decimals"])
 
-t_weth = CryptoToken(Web3.to_hex(hexstr=weth), weth, "WETH", 18)
-t_usdt = CryptoToken(Web3.to_hex(hexstr=usdt), usdt, "USDT", 6)
-t_rlb = CryptoToken(Web3.to_hex(hexstr=rlb), rlb, "RLB", 18)
+t_weth = CryptoToken(Web3.to_bytes(hexstr=weth), weth, "WETH", 18)
+t_usdt = CryptoToken(Web3.to_bytes(hexstr=usdt), usdt, "USDT", 6)
+t_rlb = CryptoToken(Web3.to_bytes(hexstr=rlb), rlb, "RLB", 18)
 
 class TestDeployer(unittest.TestCase):
 
@@ -32,7 +33,6 @@ class TestDeployer(unittest.TestCase):
         FACTORY_ADDRESS = Web3.to_checksum_address("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
 
         weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
-
 
     def test_struct_param(self, *args):
         myStruct = {
@@ -78,18 +78,19 @@ class TestDeployer(unittest.TestCase):
         one = t_usdt
         two = t_weth
         three = t_rlb
-        # the first pair is just important for the initFlash to identify the pool address
-        zeroForOne = one.hex_address < two.hex_address
+        # only the first pair is important to be in correct order for the initFlash to identify the pool address
+        # using zeroForOne worked on usdt and weth
+        zeroForOne = one.id < two.id
         if zeroForOne:
             token0 = one
             amount_0 = int(swap1_amount * (10 ** token0.decimals))
             borrowed_amount = amount_0
 
             token1 = two
-            amount_1 = 0
+            amount_1 = 0    # int(0.03978381769984377 * (10 ** two.decimals)) #0
         else:
             token0 = two
-            amount_0 = 0
+            amount_0 = 0    #int(0.03978381769984377 * (10 ** two.decimals)) #0
 
             token1 = one
             amount_1 =  int(swap1_amount * (10 ** token1.decimals))
@@ -101,14 +102,14 @@ class TestDeployer(unittest.TestCase):
         # amount_1 = 0 if zeroForOne else swap1_amount1
 
         FlashParams = {
-            "token_0": token0.hex_address,
-            "token_1": token1.hex_address,
+            "token_0": token0.id,
+            "token_1": token1.id,
             "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
             "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
-            "token1": one.hex_address,  # this is the token we need borrowing
-            "token2": two.hex_address,
-            "token3": three.hex_address,
             "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
+            "token1": one.id,  # this is the token we need borrowing
+            "token2": two.id,
+            "token3": three.id,
             "quote1": int(0.03978381769984377 * (10 ** two.decimals)),
             "quote2": int(777.5967111439336 * (10 ** three.decimals)),
             "quote3": int(100.196489 * (10 ** one.decimals)),
@@ -119,17 +120,47 @@ class TestDeployer(unittest.TestCase):
         }
 
 
-        tup = str(FlashParams)
+        tup = str(FlashParams.values())
+
+        values = [tuple(FlashParams.values())]
 
         print(str(tup).replace(" ", ""))
 
+        return FlashParams
+
     def test_initFlash(self):
-        network = uniswap_api.get_network("testnet")
 
-        provider = Web3.HTTPProvider(network["provider"])
-        w3 = Web3(provider)
+        # Variables
+        chain_id = 11155111   # 56 Binance Smart Chain number, Ethereum is 1
+        gas = 300000
+        gas_price = Web3.to_wei("5.5", "gwei")
+        send_bnb = 0.01
+        amount = Web3.to_wei(send_bnb, "ether")  # not sure why "ether" is used
 
-        uni = Uniswap(network_config=network, provider=provider)
+        # Nonce
+        nonce = tu.w3.eth.get_transaction_count(tu.uniswap.address)  # public address of the sender i.e. your account
+
+        flash = tu.uniswap.flash_loan
+
+        _ = flash.functions.factory().call()
+
+        params = self.test_struct_flash_params()
+
+        # Build Transaction - BULL
+        tx_build = flash.functions.initFlash(params).transact()
+
+        # Sign transaction
+        tx_signed = tu.w3.eth.account.sign_transaction(tx_build, private_key=tu.uniswap.private_key)
+
+        # Send transaction
+        sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+        print(sent_tx)
+
+        #tx_hash = greeter.functions.setGreeting('Nihao').transact()
+
+        #tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+        pass
 
 
 

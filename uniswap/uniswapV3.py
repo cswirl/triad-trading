@@ -21,7 +21,7 @@ class Uniswap:
     def __init__(
         self,
         network_config: dict,
-        pKeys: Optional[dict] = None,
+        pKeys: dict = None,
         provider: Optional[str] = None,
         default_slippage: float = 0.01,
         use_estimate_gas: bool = True,
@@ -32,7 +32,7 @@ class Uniswap:
         :param provider: the provider to be used in Web3 instance.
         :param default_slippage: - NOT YET IMPLEMENTED - Default slippage for a trade, as a float (0.01 is 1%). WARNING: slippage is untested.
         """
-        keys = pKeys or  uniswap_helper.load_keys_from_file() or None
+        keys = pKeys
         if keys is None: print("No keys found.")
 
         self.private_key = keys and keys["privateKey"] or "0x0000000000000000000000000000000000000000000000000000000000000000"
