@@ -43,6 +43,7 @@ t_ape = CryptoToken(ape, "APE", 18)
 usdc_decimals = 6
 weth_decimals = 18
 
+
 def path_builder(fee):
     """
     USDC, 60, WETH
@@ -70,6 +71,9 @@ def path_builder(fee):
 
 
 class TestUniswapApi(unittest.TestCase):
+
+    def test_deployer(self):
+        pass
 
     def test_quoter_compare(self):
         print("============ QUOTER COMPARE ===============")
@@ -206,8 +210,6 @@ class TestUniswapApi(unittest.TestCase):
 
 
 
-
-
     def test_get_token(self):
         symbol = "ez-yvCurve-IronBank"
 
@@ -218,3 +220,7 @@ class TestUniswapApi(unittest.TestCase):
             print(f"No symbol '{symbol}' exists in the Tokens list")
 
 
+    def test_checksum_address(self):
+        _ =  weth
+        print(_)
+        _ =""

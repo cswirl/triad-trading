@@ -66,6 +66,13 @@ class Uniswap:
             abi_name=quoter_conf["abiName"]
         )
 
+        flash_config = network_config["flashLoan"]
+        self.flash_loan = uniswap_helper._load_contract(
+            self.w3,
+            address=flash_config["address"],
+            abi_name=flash_config["abiName"]
+        )
+
         # self.positionManager_addr = _str_to_addr(
         #     "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
         # )

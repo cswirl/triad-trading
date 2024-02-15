@@ -11,6 +11,9 @@ QUOTER_ABI_FILE_PATH = "assets/quoter.abi"
 ROUTER_ADDRESS = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 ROUTER_ABI_FILE_PATH = "assets/router.abi"
 
+FLASH_LOAN_ADDRESS = "0x2a4d0eD2b3ED22373018C46C4Db0f488A7250dD0"
+FLASH_LOAN_ABI_FILE_PATH = "assets/flash_loan.abi"
+
 STABLE_COINS = ["USDC", "USDT", "DAI", "FRAX"]  # must be a list to preserved order
 
 APPROVED_TOKENS = ["WETH", "WBTC", "UNI"]       # must be a list to preserved order
@@ -36,9 +39,14 @@ Networks = {
     "testnet": {
         "provider": TESTNET_PROVIDER,
         "quoter": {
-            "address": "",
-            "abiName": ""
+            "address": QUOTER_ADDRESS,
+            "abiName": "quoter"
+        },
+        "flashLoan": {
+            "address": FLASH_LOAN_ADDRESS,
+            "abiName": "flash_loan"
         }
+
     },
     "mainnet": {
         "provider": MAINNET_PROVIDER,
