@@ -147,7 +147,13 @@ class TestDeployer(unittest.TestCase):
         params = self.test_struct_flash_params()
 
         # Build Transaction - BULL
-        tx_build = flash.functions.initFlash(params).transact()
+        tx_build = flash.functions.initFlash(params).build_transaction({
+            "chainId": chain_id,
+            "value": 0,
+            "gas": gas,
+            "gasPrice": gas_price,
+            "nonce": nonce
+        })
 
         # Sign transaction
         tx_signed = tu.w3.eth.account.sign_transaction(tx_build, private_key=tu.uniswap.private_key)
@@ -160,7 +166,6 @@ class TestDeployer(unittest.TestCase):
 
         #tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        pass
 
 
 
