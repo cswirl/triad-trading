@@ -95,16 +95,9 @@ class Trader:
                 gt.g_trade_transaction_counter += 1
 
             # execute flash loan - initFlash
+            result = await self.flashloan_execute()  #triad_util.execute_flash(quotation_dict)
 
-            # Set a timeout of in seconds for async function
-            trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
-
-            # await self.hunt_profit(trade1_result)
-            trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
-
-            # await self.hunt_profit(trade1_result, trade2_result)
-            amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
-
+            amount_out_3 = quotation_dict["quote3"]
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -194,18 +187,6 @@ class Trader:
             amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
             self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
 
-        quotation_dict = {
-            "pathwayTripletSymbols": self.pathway_triplet,
-            "seedAmount": test_amount,
-            "quote1": amount_out_1,
-            "quote2": amount_out_2,
-            "quote3": amount_out_3,
-            "fee1": GAS_FEE,
-            "fee2": GAS_FEE,
-            "fee3": GAS_FEE
-        }
-
-
         # calculate pnl and pnl percentage
         profit_loss = test_amount and amount_out_3 - test_amount
         profit_loss_perc = test_amount and profit_loss / float(test_amount) * 100
@@ -221,9 +202,20 @@ class Trader:
         if profit_loss_perc >= DEPTH_MIN_RATE:
             self.logger(indent_1 + "Profit Found")
             self.save_logs()
+
+            quotation_dict = {
+                "pathwayTripletSymbols": self.pathway_triplet,
+                "seedAmount": test_amount,
+                "quote1": amount_out_1,
+                "quote2": amount_out_2,
+                "quote3": amount_out_3,
+                "fee1": GAS_FEE,
+                "fee2": GAS_FEE,
+                "fee3": GAS_FEE
+            }
             return (True, quotation_dict)
 
-        return False
+        return (False, None)
 
     async def ask_for_funding(self):
         self.logger(indent_1 + " asking for funding")
@@ -275,6 +267,15 @@ class Trader:
 
         return response, fund_in_usd, fund
 
+    async def flashloan_execute(self):
+        start = time.perf_counter()
+        self.logger(indent_1 + "executing flash loan")
+
+        await asyncio.sleep(3)
+
+        self.logger(f"Trade completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+
+        return "transaction hash"
 
     async def execute_trade_1(self):
         start = time.perf_counter()

@@ -239,25 +239,21 @@ def flashloan_struct_param(pathway_triplet: str, seed_amount, quotation_dict: di
 
     return FlashParams
 
-def ExecuteFlash(flashParams_dict):
-    # Variables
-    chain_id = 11155111  # 56 Binance Smart Chain number, Ethereum is 1
+async def execute_flash(flashParams_dict):
+    # Transaction variables
+    chain_id = 11155111  # Sepolia
     gas = 300000
     gas_price = Web3.to_wei("5.5", "gwei")
-    send_bnb = 0.01
-    amount = Web3.to_wei(send_bnb, "ether")  # not sure why "ether" is used
 
     # Nonce
-    nonce = tu.w3.eth.get_transaction_count(tu.uniswap.address)  # public address of the sender i.e. your account
+    nonce = w3.eth.get_transaction_count(uniswap.address)  # public address of the sender i.e. your account
 
-    flash = tu.uniswap.flash_loan
+    flash = uniswap.flash_loan
+    if flash is None:
+        print("Error: flash loan contract did not load properly")
 
-    _ = flash.functions.factory().call()
-
-    params = self.test_struct_flash_params()
-
-    # Build Transaction - BULL
-    tx_build = flash.functions.initFlash(params).build_transaction({
+    # Build Transaction -
+    tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
         "chainId": chain_id,
         "value": 0,
         "gas": gas,
@@ -266,10 +262,10 @@ def ExecuteFlash(flashParams_dict):
     })
 
     # Sign transaction
-    tx_signed = tu.w3.eth.account.sign_transaction(tx_build, private_key=tu.uniswap.private_key)
+    tx_signed = w3.eth.account.sign_transaction(tx_build, private_key=uniswap.private_key)
 
     # Send transaction
-    sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+    sent_tx = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
     print(sent_tx)
 
     # tx_hash = greeter.functions.setGreeting('Nihao').transact()

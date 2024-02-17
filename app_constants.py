@@ -3,11 +3,11 @@
 # assigning True will make the trader instance to place trade against the pool thereafter
 # - may cause many duplicate trade on same pathway - or repeated trade failure or
 # - until a clearing system is implemented
-POST_TRADE_CONTINUE = False
+POST_TRADE_CONTINUE = True
 
 SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 # REMEMBER: block time is 15 sec.
-POST_TRADE_EXECUTION_SLEEP = 15 # tentative
+POST_TRADE_EXECUTION_SLEEP = 60 # tentative
 DEFAULT_SLEEP_TIME = 16
 NO_FUNDS_SLEEP_TIME = 30
 CONTRACT_LOGIC_ERROR_SLEEP = 60 * 2
@@ -36,13 +36,13 @@ RATE_LIMIT_PER_SECOND = 33
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
 
-DEPTH_MIN_RATE = 1.5    # in percent
+DEPTH_MIN_RATE = 1    # in percent
 MIN_SURFACE_RATE = 1.5
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
 
 
-MAX_TRADING_TRANSACTIONS = 1  # losing gas fee for every reverted / fail triangular trade
+MAX_TRADING_TRANSACTIONS = 5  # losing gas fee for every reverted / fail triangular trade
 CONSECUTIVE_FAILED_TRADE_THRESHOLD = 3
 
 # FUNDING_TIER_0 = 500    #all stable coins
