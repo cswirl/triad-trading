@@ -371,12 +371,6 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
         initial_active_traders = len(traders_list)
 
-        headings = []
-        headings.append(f"Initial Active Traders: {initial_active_traders}")
-        headings.append(f"Numbers Trades Executed: {gt.g_trade_transaction_counter}")
-        headings.append(f"timestamp: {_now}")
-        headings.append(f"refresh every: {TRADER_MONITOR_SLEEP} seconds")
-
         # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
             if trader.internal_state == TraderState.DORMANT:
@@ -387,25 +381,35 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
                 idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
                 idle_list.append(trader)
 
+        headings = []
+        headings.append(f"Initial Active Traders: {initial_active_traders}")
+        headings.append(f"Numbers Trades Executed: {gt.g_trade_transaction_counter}")
+        headings.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
+        headings.append(f"g_trade_transaction_counter: {gt.g_trade_transaction_counter}")
+        headings.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
+        headings.append(f"sleep time: {calculate_sleep_time()} seconds")
+        headings.append("---------------------------------------------------")
+        headings.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
+        headings.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
+        headings.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
+        headings.append("---------------------------------------------------")
+        headings.append(f"timestamp: {_now}")
+        headings.append(f"refresh every: {TRADER_MONITOR_SLEEP} seconds")
+        headings.append("=====================================================================")
+
         msg.extend(headings)
         msg.extend(idle_list_msg)
         msg.extend(active_list_msg)
         msg.extend(dormant_list_msg)
         msg.append("============================================================")
-        msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
-        msg.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
-        msg.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
-        msg.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
-        msg.append(f"g_trade_transaction_counter: {gt.g_trade_transaction_counter}")
-        msg.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
-        msg.append(f"sleep time: {calculate_sleep_time()} seconds")
+
         msg.append(f"idling traders:")
         for trader in idle_list:
             msg.append(f"{trader.internal_state_reason} --- {str(trader)}")
 
         active_list_log.extend(headings)
         active_list_log.extend(active_list_msg)
-        active_list_msg.append("============================================================")
+        active_list_msg.append("=====================================================================")
         active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
 
         # save log ever 30 sec
