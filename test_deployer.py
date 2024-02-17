@@ -79,8 +79,8 @@ class TestDeployer(unittest.TestCase):
         two = t_weth
         three = t_rlb
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
-        # using zeroForOne worked on usdt and weth
-        zeroForOne = one.id < two.id
+        # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
+        zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
         if zeroForOne:
             token0 = one
             amount_0 = int(swap1_amount * (10 ** token0.decimals))

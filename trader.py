@@ -77,7 +77,7 @@ class Trader:
 
         try:
             # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
-            await self.hunt_profit()
+            quotation_dict = await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
@@ -91,6 +91,11 @@ class Trader:
 
             self.internal_state = TraderState.TRADING
 
+            async with gt.g_lock:
+                gt.g_trade_transaction_counter += 1
+
+            # execute flash loan - initFlash
+
             # Set a timeout of in seconds for async function
             trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
 
@@ -100,8 +105,6 @@ class Trader:
             # await self.hunt_profit(trade1_result, trade2_result)
             amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
 
-            async with gt.g_lock:
-                gt.g_trade_transaction_counter += 1
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -160,11 +163,11 @@ class Trader:
             if self.hunt_profit_flag == False:
                 continue
 
-            good_depth = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
+            good_depth, quotation_dict = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
 
             if good_depth:
                 self.logger("Changing State: 'Trading'")
-                break
+                return quotation_dict
 
             sleep_time = calculate_sleep_time()
             self.logger(f"sleep time {sleep_time}")
@@ -191,6 +194,17 @@ class Trader:
             amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
             self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
 
+        quotation_dict = {
+            "pathwayTripletSymbols": self.pathway_triplet,
+            "seedAmount": test_amount,
+            "quote1": amount_out_1,
+            "quote2": amount_out_2,
+            "quote3": amount_out_3,
+            "fee1": GAS_FEE,
+            "fee2": GAS_FEE,
+            "fee3": GAS_FEE
+        }
+
 
         # calculate pnl and pnl percentage
         profit_loss = test_amount and amount_out_3 - test_amount
@@ -207,7 +221,7 @@ class Trader:
         if profit_loss_perc >= DEPTH_MIN_RATE:
             self.logger(indent_1 + "Profit Found")
             self.save_logs()
-            return True
+            return (True, quotation_dict)
 
         return False
 
@@ -392,13 +406,6 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         active_list_log.extend(active_list_msg)
         active_list_msg.append("============================================================")
         active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
-
-        # TODO: exiting program when MAX_TRADING_TRANSACTIONS_EXCEEDED
-        async with gt.g_lock:
-            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
-                msg.append(f"Exiting the program : MAX_TRADING_TRANSACTIONS_EXCEEDED")
-                exit_program = True
-
 
         # save log ever 30 sec
         filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")

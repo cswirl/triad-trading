@@ -167,6 +167,115 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
+def flashloan_struct_param(pathway_triplet: str, seed_amount, quotation_dict: dict):
+    """
+            "Greetings from USDT_WETH_RLB_2f31aaa2-93c5-4540-8cf5-6147d3e79c0e",
+            "Active Traders: 156  (inaccurate: testing for sleep calculation)",
+            "Test Fund: 100 USDT ---approx. 100 USD",
+            "Changing state: 'Hunting Profit'",
+            "================================================================================Inquiring price",
+            "Quote 1 : 100 USDT to 0.03978381769984377 WETH",
+            "Quote 2 : 0.03978381769984377 WETH to 777.5967111439336 RLB",
+            "Quote 3 : 777.5967111439336 RLB to 100.196489 USDT",
+            "--------------------",
+            "Min. rate : 0",
+            "PnL : 0.1964889999999997",
+            "PnL % : 0.1964889999999997",
+
+            :return:
+            """
+
+    first_symbol,second_symbol,third_symbol = pathway_triplet.split(uniswap_api.PATH_TRIPLET_DELIMITER)
+
+    # this is the order of the pathway triplet
+    one = uniswap_api.get_token(first_symbol)
+    two = uniswap_api.get_token(second_symbol)
+    three = uniswap_api.get_token(third_symbol)
+
+    # #
+    # quote1 = int(0.03978381769984377 * (10 ** two.decimals))
+    # quote2 = int(777.5967111439336 * (10 ** three.decimals))
+    # quote3 = int(100.196489 * (10 ** one.decimals))
+    # #
+    swap1_amount = quotation_dict["seedAmount"]
+
+    addToDeadline = 200  # seconds
+
+    # only the first pair is important to be in correct order for the initFlash to identify the pool address
+    # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
+    zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
+    if zeroForOne:
+        token0 = one
+        amount_0 = int(swap1_amount * (10 ** token0.decimals))
+        borrowed_amount = amount_0
+
+        token1 = two
+        amount_1 = 0  # int(0.03978381769984377 * (10 ** two.decimals)) #0
+    else:
+        token0 = two
+        amount_0 = 0  # int(0.03978381769984377 * (10 ** two.decimals)) #0
+
+        token1 = one
+        amount_1 = int(swap1_amount * (10 ** token1.decimals))
+        borrowed_amount = amount_1
+
+    FlashParams = {
+        "token_0": token0.id,
+        "token_1": token1.id,
+        "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
+        "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
+        "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
+        "token1": one.id,  # this is the token we need borrowing
+        "token2": two.id,
+        "token3": three.id,
+        "quote1": quotation_dict["quote1"],
+        "quote2": quotation_dict["quote2"],
+        "quote3": quotation_dict["quote3"],
+        "fee1": quotation_dict["fee1"],
+        "fee2": quotation_dict["fee2"],
+        "fee3": quotation_dict["fee3"],
+        "addToDeadline": addToDeadline
+    }
+
+    return FlashParams
+
+def ExecuteFlash(flashParams_dict):
+    # Variables
+    chain_id = 11155111  # 56 Binance Smart Chain number, Ethereum is 1
+    gas = 300000
+    gas_price = Web3.to_wei("5.5", "gwei")
+    send_bnb = 0.01
+    amount = Web3.to_wei(send_bnb, "ether")  # not sure why "ether" is used
+
+    # Nonce
+    nonce = tu.w3.eth.get_transaction_count(tu.uniswap.address)  # public address of the sender i.e. your account
+
+    flash = tu.uniswap.flash_loan
+
+    _ = flash.functions.factory().call()
+
+    params = self.test_struct_flash_params()
+
+    # Build Transaction - BULL
+    tx_build = flash.functions.initFlash(params).build_transaction({
+        "chainId": chain_id,
+        "value": 0,
+        "gas": gas,
+        "gasPrice": gas_price,
+        "nonce": nonce
+    })
+
+    # Sign transaction
+    tx_signed = tu.w3.eth.account.sign_transaction(tx_build, private_key=tu.uniswap.private_key)
+
+    # Send transaction
+    sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
+    print(sent_tx)
+
+    # tx_hash = greeter.functions.setGreeting('Nihao').transact()
+
+    # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
 def load_keys_from_file():
 
     #filename = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
