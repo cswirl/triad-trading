@@ -41,7 +41,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
 
-
         // When this callback is invoked, it means this contract was already funded using pool.flash 
         // in the function initFlash and stored in FlashCallbackData.borrowedAmount 
         // and that value can be accessed here via the decoded.borrowedAmount
@@ -54,11 +53,9 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         address token2 = decoded.token2;
         address token3 = decoded.token3;
 
-        
         // If any one of the three swaps fails, the whole transaction will fail
         //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
         //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
-
 
         // swap 1: swapping token1 for token2 in pool - use fee0 from callback argument
         TransferHelper.safeApprove(token1, address(swapRouter), decoded.borrowedAmount);
@@ -111,17 +108,17 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                 })
             );
 
-        // end up with amountOut0 of token1 from first swap and swap3_amountOut from last swap
-        //uint256 amount0Owed = LowGasSafeMath.add(decoded.amount0, fee0);
-        // todo: i used python to fix logic zeroForOne?
-        
-
         // token 1 is the token we borrowed from
-        // and the amount owinng is stored in decoded.borrowedAmount
+        // and the amount owing is stored in decoded.borrowedAmount
         
         // if no profitable, we do not pay back pool so whole transaction will revert itself
         // if profitable, pay profits to payer-->our wallet: decoded.payer
-        if (swap3_amountOut > amount0Owed) {
+
+        // this calculation recognized that the fee is included for each swap
+        // - however, the cost for the whole transaction is not included in the calculation
+        uint256 totalFees = fee0 + fee1;
+        uint256 transactionCost = LowGasSafeMath.add(decoded.borrowedAmount, totalFees);
+        if (swap3_amountOut > transactionCost) {
             // pay back the pool-->msg.sender
             TransferHelper.safeApprove(token1, address(this), amount0Owed);
             TransferHelper.safeApprove(token2, address(this), amount1Owed);
@@ -129,16 +126,14 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             if (amount1Owed > 0) pay(token2, address(this), msg.sender, amount1Owed);
 
             uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, amount0Owed);
-            // pay our wallets
+            // pay our wallet-->decoded.payer
             TransferHelper.safeApprove(token1, address(this), profit0);
             pay(token1, address(this), decoded.payer, profit0);
         }
 
     }
 
-    //fee1 is the fee of the pool from the initial borrow
-    //fee2 is the fee of the first pool to arb from
-    //fee3 is the fee of the second pool to arb from
+    //fee1, fee2, fee3 are the ones we used in the Quoter - from python program
     struct FlashParams {
         address token_0;
         address token_1;
@@ -156,7 +151,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 fee3;
         uint24 addToDeadline;
     }
-    // fee2 and fee3 are the two other fees associated with the two other pools of token0 and token1
+    //
     struct FlashCallbackData {
         uint256 amount0;
         uint256 amount1;
