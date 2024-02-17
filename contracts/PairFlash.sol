@@ -56,7 +56,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         
         // If any one of the three swaps fails, the whole transaction will fail
-        // exactInputSingle will throw an error: - if result is less than amountOutMinimum
+        //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
         //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
 
 

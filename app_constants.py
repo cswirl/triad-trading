@@ -3,7 +3,7 @@
 # assigning True will make the trader instance to place trade against the pool thereafter
 # - may cause many duplicate trade on same pathway - or repeated trade failure or
 # - until a clearing system is implemented
-POST_TRADE_CONTINUE = True
+POST_TRADE_CONTINUE = False
 
 SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 # REMEMBER: block time is 15 sec.
