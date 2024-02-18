@@ -91,16 +91,10 @@ class Trader:
 
             self.internal_state = TraderState.TRADING
 
-            async with gt.g_lock:
-                gt.g_trade_transaction_counter += 1
-
             # execute flash loan - initFlash
             success, tx_hash, receipt = await self.flashloan_execute(
                 triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
             )
-
-            async with gt.g_lock:
-                gt.g_trade_transaction_counter -= 1
 
             amount_out_3 = quotation_dict["quote3"]
 
@@ -118,18 +112,15 @@ class Trader:
 
             result_dict = {
                 "id": str(self),
-                "txHash": tx_hash,
+                "txHash": tx_hash or "<not set>",
                 "status": success,
                 "pnl": profit_loss,
                 "pnlPerc": profit_loss_perc,
                 "trade_logs": self.lifespan_logs,
-                "receipt": receipt
+                "receipt": str(receipt)
             }
 
             self.save_result_json(result_dict)
-
-            if not success: # value 0 means transaction was reverted
-                return BREAK_OUTER_LOOP
 
         except asyncio.TimeoutError:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
@@ -233,7 +224,7 @@ class Trader:
 
         async with gt.g_lock:
             # max transaction count reached
-            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
+            if gt.g_total_trades_executed >= MAX_TRADING_TRANSACTIONS:
                 self.internal_state = TraderState.IDLE
                 self.internal_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
                 self.logger(f"MAX_TRADING_TRANSACTIONS_EXCEEDED")
@@ -279,14 +270,25 @@ class Trader:
         return response, fund_in_usd, fund
 
     async def flashloan_execute(self,flashParams_dict):
+        async with gt.g_lock:
+            gt.g_incomplete_trade_counter += 1
+            gt.g_total_trades_executed += 1
+
         self.logger(indent_1 + "executing flash loan")
         start = time.perf_counter()
 
         success, tx_hash, receipt = triad_util.execute_flash(flashParams_dict)
+
+        async with gt.g_lock:
+            gt.g_incomplete_trade_counter -= 1
+            if success:
+                gt.g_consecutive_trade_failure = 0
+            else:
+                gt.g_consecutive_trade_failure += 1
+
         self.logger(f"flash loan completed : {tx_hash} elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return success, tx_hash, receipt
-
 
 
     async def execute_trade_1(self):
@@ -303,7 +305,6 @@ class Trader:
         self.logger(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
-
 
 
     async def execute_trade_2(self):
@@ -395,9 +396,9 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
 
         headings = []
         headings.append(f"Initial Active Traders: {initial_active_traders}")
-        headings.append(f"Numbers Trades Executed: {gt.g_trade_transaction_counter}")
+        headings.append(f"Numbers Trades Executed: {gt.g_total_trades_executed}")
         headings.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
-        headings.append(f"g_trade_transaction_counter: {gt.g_trade_transaction_counter}")
+        headings.append(f"g_incomplete_trade_counter: {gt.g_incomplete_trade_counter}")
         headings.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
         headings.append(f"sleep time: {calculate_sleep_time()} seconds")
         headings.append("---------------------------------------------------")

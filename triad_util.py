@@ -252,6 +252,7 @@ def execute_flash(flashParams_dict: dict):
     flash = uniswap.flash_loan
     if flash is None:
         print("Error: flash loan contract did not load properly")
+        return (False, None, None)
 
     # # Build Transaction -
     # tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
@@ -291,12 +292,6 @@ def execute_flash(flashParams_dict: dict):
         return (False, tx_hash, None)
 
 
-
-
-
-
-
-
 def load_keys_from_file():
 
     #filename = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
@@ -313,7 +308,7 @@ def load_keys_from_file():
 
 
 keys = load_keys_from_file()
-network = uniswap_api.get_network("sepolia")
+network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)

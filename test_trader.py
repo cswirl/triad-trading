@@ -58,7 +58,7 @@ class TestTrader(unittest.TestCase):
         )
         g.g_trader_list = [trader]
 
-        #g.g_trade_transaction_counter = MAX_TRADING_TRANSACTIONS + 1
+        #g.g_incomplete_trade_counter = MAX_TRADING_TRANSACTIONS + 1
         await asyncio.gather(trader.start_trading())
 
         #assert trader.internal_state == trader_MODULE.TraderState.IDLE
