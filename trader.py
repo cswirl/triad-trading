@@ -95,7 +95,9 @@ class Trader:
                 gt.g_trade_transaction_counter += 1
 
             # execute flash loan - initFlash
-            result = await self.flashloan_execute()  #triad_util.execute_flash(quotation_dict)
+            result = await self.flashloan_execute(
+                triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
+            )
 
             amount_out_3 = quotation_dict["quote3"]
 
@@ -267,15 +269,15 @@ class Trader:
 
         return response, fund_in_usd, fund
 
-    async def flashloan_execute(self):
-        start = time.perf_counter()
+    async def flashloan_execute(self,flashParams_dict):
         self.logger(indent_1 + "executing flash loan")
+        start = time.perf_counter()
 
-        await asyncio.sleep(3)
+        result = await triad_util.execute_flash(flashParams_dict)
 
-        self.logger(f"Trade completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+        self.logger(f"flash loan completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
-        return "transaction hash"
+        return result
 
     async def execute_trade_1(self):
         start = time.perf_counter()

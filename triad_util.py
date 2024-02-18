@@ -167,7 +167,7 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
-def flashloan_struct_param(pathway_triplet: str, seed_amount, quotation_dict: dict):
+def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     """
             "Greetings from USDT_WETH_RLB_2f31aaa2-93c5-4540-8cf5-6147d3e79c0e",
             "Active Traders: 156  (inaccurate: testing for sleep calculation)",
@@ -288,7 +288,7 @@ def load_keys_from_file():
 
 
 keys = load_keys_from_file()
-network = uniswap_api.get_network("mainnet")
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
