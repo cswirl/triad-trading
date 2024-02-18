@@ -1,6 +1,8 @@
 import asyncio
+import time
 import unittest
 from datetime import datetime
+import random
 
 import global_triad as g
 import trader as trader_MODULE
@@ -53,7 +55,8 @@ class TestTrader(unittest.TestCase):
         trader = Trader(
             "USDC_WETH_APE",
             self._test_depth_rate,
-            #triad_util.get_depth_rate,
+            # triad_util.get_depth_rate,
+            self._test_execute_flash,
             calculate_seed_fund=triad_util.get_seed_fund
         )
         g.g_trader_list = [trader]
@@ -108,6 +111,7 @@ class TestTrader(unittest.TestCase):
             trader = Trader(
                 pathway_triplet,
                 triad_util.get_depth_rate,
+                self._test_execute_flash,
                 calculate_seed_fund=triad_util.get_seed_fund
             )
             traders_list.append(trader)
@@ -223,3 +227,7 @@ class TestTrader(unittest.TestCase):
     #------------------------------------------------------------------------------------
     def _test_depth_rate(self, token0_symbol, token1_symbol, amount_in):
         return amount_in * 1.03 # give 3% profit each trade - accumulates
+
+    def _test_execute_flash(self, flashParams_dict):
+        time.sleep(20)
+        return (random.randint(0, 1), None, None)

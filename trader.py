@@ -27,7 +27,12 @@ class TraderState(Enum):    # using a text mapping is available
 
 
 class Trader:
-    def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
+    def __init__(self,
+                 pathway_triplet,
+                 func_depth_rate,
+                 func_excute_flashloan,
+                 calculate_seed_fund = None
+                 ):
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
@@ -48,6 +53,7 @@ class Trader:
         self.hunt_profit_flag = True
 
         self.get_depth_rate = func_depth_rate
+        self.excute_flashloan = func_excute_flashloan
 
         self.logger(f"Greetings from {str(self)}")
         self.logger(f"Active Traders: {gt.g_total_active_traders}  (inaccurate: testing for sleep calculation)")
@@ -277,7 +283,7 @@ class Trader:
         self.logger(indent_1 + "executing flash loan")
         start = time.perf_counter()
 
-        success, tx_hash, receipt = triad_util.execute_flash(flashParams_dict)
+        success, tx_hash, receipt = self.excute_flashloan(flashParams_dict)
 
         async with gt.g_lock:
             gt.g_incomplete_trade_counter -= 1
@@ -376,6 +382,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
     msg = []
     active_list_log = []
     active_list_msg = []
+    trading_list_msg = []
     dormant_list_msg = []
     idle_list = []
     idle_list_msg = []
@@ -390,16 +397,18 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
                 dormant_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
             elif trader.internal_state == TraderState.ACTIVE or trader.internal_state == TraderState.HUNTING:
                 active_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
+            elif trader.internal_state == TraderState.TRADING:
+                trading_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
             elif trader.internal_state == TraderState.IDLE:
                 idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
                 idle_list.append(trader)
 
         headings = []
         headings.append(f"Initial Active Traders: {initial_active_traders}")
-        headings.append(f"Numbers Trades Executed: {gt.g_total_trades_executed}")
-        headings.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
-        headings.append(f"g_incomplete_trade_counter: {gt.g_incomplete_trade_counter}")
+        headings.append(f"Total of Trades Executed: {gt.g_total_trades_executed}")
         headings.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
+        headings.append(f"g_incomplete_trade_counter: {gt.g_incomplete_trade_counter}")
+        headings.append(f"g_consecutive_trade_failure: {gt.g_consecutive_trade_failure}")
         headings.append(f"sleep time: {calculate_sleep_time()} seconds")
         headings.append("---------------------------------------------------")
         headings.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
@@ -411,6 +420,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         headings.append("=====================================================================")
 
         msg.extend(headings)
+        msg.extend(trading_list_msg)
         msg.extend(idle_list_msg)
         msg.extend(active_list_msg)
         msg.extend(dormant_list_msg)
@@ -444,6 +454,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         dormant_list_msg.clear()
         idle_list.clear()
         idle_list_msg.clear()
+        trading_list_msg.clear()
 
         await asyncio.sleep(TRADER_MONITOR_SLEEP)
 
