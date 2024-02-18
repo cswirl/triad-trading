@@ -284,7 +284,7 @@ def execute_flash(flashParams_dict: dict):
     try:
         # see https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.wait_for_transaction_receipt
         tx_receipt = w3.eth.wait_for_transaction_receipt(sent_tx, timeout=flashParams_dict["addToDeadline"])
-        print(w3.to_hex(sent_tx))
+        print(tx_hash)
 
         return (int(tx_receipt["status"]), tx_hash, tx_receipt)
     except TimeExhausted as e:

@@ -119,7 +119,7 @@ class Trader:
                 "pnl": profit_loss,
                 "pnlPerc": profit_loss_perc,
                 "trade_logs": self.lifespan_logs,
-                "receipt": receipt and str(receipt)
+                "receipt": receipt and str(receipt) or "<not set>"
             }
 
             self.save_result_json(result_dict)
@@ -379,24 +379,27 @@ class Trader:
 
 
 async def trader_monitor(traders_list:[Trader], counter = 0):
-    msg = []
-    active_list_log = []
-    active_list_msg = []
-    trading_list_msg = []
-    dormant_list_msg = []
-    idle_list = []
-    idle_list_msg = []
 
     while len(traders_list) > 0:
         _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
         initial_active_traders = len(traders_list)
+        msg = []
+        active_list_log = []
+        active_list_msg = []
+        trading_list_msg = []
+        dormant_list_msg = []
+        hunting_list_msg = []
+        idle_list = []
+        idle_list_msg = []
 
         # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
             if trader.internal_state[0] == TraderState.DORMANT:
                 dormant_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)} - {trader.internal_state[1]}")
-            elif trader.internal_state[0] == TraderState.ACTIVE or trader.internal_state[0] == TraderState.HUNTING:
+            elif trader.internal_state[0] == TraderState.ACTIVE:
                 active_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)}")
+            elif trader.internal_state[0] == TraderState.HUNTING:
+                hunting_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)}")
             elif trader.internal_state[0] == TraderState.TRADING:
                 trading_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)} - TRADING")
             elif trader.internal_state[0] == TraderState.IDLE:
@@ -412,6 +415,8 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         headings.append(f"sleep time: {calculate_sleep_time()} seconds")
         headings.append("---------------------------------------------------")
         headings.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
+        headings.append(f"{len(hunting_list_msg)} / {initial_active_traders} hunting traders")
+        headings.append(f"{len(trading_list_msg)} / {initial_active_traders} trading traders")
         headings.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
         headings.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
         headings.append("---------------------------------------------------")
@@ -423,6 +428,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         msg.extend(trading_list_msg)
         msg.extend(idle_list_msg)
         msg.extend(active_list_msg)
+        msg.extend(hunting_list_msg)
         msg.extend(dormant_list_msg)
         msg.append("============================================================")
 
@@ -448,14 +454,6 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
 
         counter += 1
 
-        msg.clear()
-        active_list_log.clear()
-        active_list_msg.clear()
-        dormant_list_msg.clear()
-        idle_list.clear()
-        idle_list_msg.clear()
-        trading_list_msg.clear()
-
         await asyncio.sleep(TRADER_MONITOR_SLEEP)
 
 
@@ -468,6 +466,7 @@ def calculate_sleep_time():
     SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
     LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
     """
-    total_active_traders = len([x for x in gt.g_trader_list if x.internal_state[0] != TraderState.DORMANT])
+    #total_active_traders = len([x for x in gt.g_trader_list if x.internal_state[0] != TraderState.DORMANT or x.internal_state[0] != TraderState.IDLE])
+    total_active_traders = sum(1 for x in gt.g_trader_list if x.internal_state[0] != TraderState.DORMANT and x.internal_state[0] != TraderState.IDLE)
     sleep_time = (LIMIT_PER_DAY and SECONDS_IN_A_DAY * total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
     return sleep_time

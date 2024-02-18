@@ -52,7 +52,20 @@ Networks = {
             "address": Web3.to_checksum_address("0x250f1ACeC4e0C17c0c80cBF8Fc98e2980213a7f8"),
             "abiName": "sepolia_flash_loan"
         }
-
+    },
+    "opSepolia": {
+        "chainId": "11155420",
+        "provider": "https://sepolia.optimism.io/",
+        "factory":  Web3.to_checksum_address("0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24"),
+        "router": Web3.to_checksum_address("0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4"),
+        "quoter": {
+            "address": Web3.to_checksum_address("0xC5290058841028F1614F3A6F0F5816cAd0df5E27"),
+            "abiName": "op_sepolia_quoter"
+        },
+        "flashLoan": {
+            "address": Web3.to_checksum_address(""),
+            "abiName": "op_sepolia_flash_loan"
+        }
     },
     "mainnet": {
         "chainId": "1",

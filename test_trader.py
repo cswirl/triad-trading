@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 import random
 
-import global_triad as g
+import global_triad as gt
 import trader as trader_MODULE
 from trader import Trader
 from uniswap import uniswap_api, utils
@@ -50,7 +50,7 @@ class TestTrader(unittest.TestCase):
         # ac.MAX_TRADING_TRANSACTIONS_SLEEP = 30
         # ac.DEPTH_MIN_RATE = 0
 
-        g.g_total_active_traders = 1
+        gt.g_total_active_traders = 1
 
         trader = Trader(
             "USDC_WETH_APE",
@@ -59,9 +59,9 @@ class TestTrader(unittest.TestCase):
             self._test_execute_flash,
             calculate_seed_fund=triad_util.get_seed_fund
         )
-        g.g_trader_list = [trader]
+        gt.g_trader_list = [trader]
 
-        #g.g_incomplete_trade_counter = MAX_TRADING_TRANSACTIONS + 1
+        #gt.g_incomplete_trade_counter = MAX_TRADING_TRANSACTIONS + 1
         await asyncio.gather(trader.start_trading())
 
         #assert trader.internal_state == trader_MODULE.TraderState.IDLE
@@ -74,16 +74,16 @@ class TestTrader(unittest.TestCase):
 
     async def entry_point_multiple_trader_instance(self):
 
-        g.g_trader_list = self._traders_list()
+        gt.g_trader_list = self._traders_list()
 
         # testing
-        g.g_total_active_traders = len(g.g_trader_list)
+        gt.g_total_active_traders = len(gt.g_trader_list)
 
         coroutine_list = []
-        for trader in g.g_trader_list:
+        for trader in gt.g_trader_list:
             coroutine_list.append(trader.start_trading())
 
-        await asyncio.gather(*coroutine_list, trader_MODULE.trader_monitor(g.g_trader_list))
+        await asyncio.gather(trader_MODULE.trader_monitor(gt.g_trader_list), *coroutine_list)
 
     def _traders_list(self):
 
@@ -104,7 +104,7 @@ class TestTrader(unittest.TestCase):
         pathway_triplet_list_LIMITED = pathway_triplet_list[0:limit] if len(
             pathway_triplet_list) >= limit else pathway_triplet_list
 
-        g.g_total_active_traders = len(pathway_triplet_list_LIMITED)
+        gt.g_total_active_traders = len(pathway_triplet_list_LIMITED)
 
         traders_list = []
         for pathway_triplet in pathway_triplet_list_LIMITED:

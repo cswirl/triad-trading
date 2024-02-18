@@ -36,13 +36,13 @@ RATE_LIMIT_PER_SECOND = 33
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
 
-DEPTH_MIN_RATE = -0.5    # in percent
+DEPTH_MIN_RATE = 1.5    # in percent
 MIN_SURFACE_RATE = 1.5
 sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
 
 
-MAX_TRADING_TRANSACTIONS = 10  # losing gas fee for every reverted / fail triangular trade
+MAX_TRADING_TRANSACTIONS = 10 # losing gas fee for every reverted / fail triangular trade
 CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
 
 # FUNDING_TIER_0 = 500    #all stable coins
@@ -54,7 +54,7 @@ CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
 
 # ---------------- TESTING --------------------------------------------
 # FOR TEST RUN - better to start small! then adjust little by little
-MULTI = 2
+MULTI = 10
 FUNDING_TIER_0 = 100 * MULTI    #all stable coins
 FUNDING_TIER_1 = 80 * MULTI
 FUNDING_TIER_2 = 50 * MULTI
