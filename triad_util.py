@@ -2,6 +2,7 @@ import json
 from enum import Enum
 import web3
 from web3 import Web3
+from web3.exceptions import TimeExhausted
 
 from uniswap import uniswap_api, uniswap_helper
 from uniswap.uniswapV3 import Uniswap
@@ -268,11 +269,8 @@ def execute_flash(flashParams_dict: dict):
     # })
 
     tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
-        "chainId": chain_id,
-        "value": 0,
-        "gas": gas,
-        "gasPrice": gas_price,
-        "nonce": nonce
+        "nonce": uniswap.last_nonce,
+        "chainId": uniswap.chain_id
     })
 
     # Sign transaction
@@ -280,11 +278,24 @@ def execute_flash(flashParams_dict: dict):
 
     # Send transaction
     sent_tx = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-    print(sent_tx)
+    tx_hash = w3.to_hex(sent_tx)
 
-    # tx_hash = greeter.functions.setGreeting('Nihao').transact()
+    try:
+        # see https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.wait_for_transaction_receipt
+        tx_receipt = w3.eth.wait_for_transaction_receipt(sent_tx, timeout=flashParams_dict["addToDeadline"])
+        print(w3.to_hex(sent_tx))
 
-    # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        return (int(tx_receipt["status"]), tx_hash, tx_receipt)
+    except TimeExhausted as e:
+        print(f"Error - TimeExhausted - {e} - hash: {tx_hash}")
+        return (False, tx_hash, None)
+
+
+
+
+
+
+
 
 def load_keys_from_file():
 

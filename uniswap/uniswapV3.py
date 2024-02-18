@@ -42,7 +42,8 @@ class Uniswap:
 
         self.version = 3
         self.w3 = Web3(provider)
-        #self.last_nonce: Nonce = self.w3.eth.get_transaction_count(self.address)
+        self.last_nonce = self.w3.eth.get_transaction_count(self.address)
+        self.chain_id = int(network_config["chainId"]) if "chainId" in network_config.keys() else 0
 
         # TODO: Write tests for slippage
         self.default_slippage = default_slippage    # not used

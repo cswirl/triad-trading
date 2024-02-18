@@ -5,7 +5,7 @@ import traceback
 from datetime import datetime
 from enum import Enum
 
-from web3.exceptions import ContractLogicError
+from web3.exceptions import ContractLogicError, TimeExhausted
 
 import global_triad as gt
 from triad_util import FundingResponse
@@ -95,9 +95,12 @@ class Trader:
                 gt.g_trade_transaction_counter += 1
 
             # execute flash loan - initFlash
-            result = await self.flashloan_execute(
+            success, tx_hash, receipt = await self.flashloan_execute(
                 triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
             )
+
+            async with gt.g_lock:
+                gt.g_trade_transaction_counter -= 1
 
             amount_out_3 = quotation_dict["quote3"]
 
@@ -115,12 +118,18 @@ class Trader:
 
             result_dict = {
                 "id": str(self),
+                "txHash": tx_hash,
+                "status": success,
                 "pnl": profit_loss,
                 "pnlPerc": profit_loss_perc,
-                "trade_logs": self.lifespan_logs
+                "trade_logs": self.lifespan_logs,
+                "receipt": receipt
             }
 
             self.save_result_json(result_dict)
+
+            if not success: # value 0 means transaction was reverted
+                return BREAK_OUTER_LOOP
 
         except asyncio.TimeoutError:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
@@ -273,11 +282,12 @@ class Trader:
         self.logger(indent_1 + "executing flash loan")
         start = time.perf_counter()
 
-        result = triad_util.execute_flash(flashParams_dict)
+        success, tx_hash, receipt = triad_util.execute_flash(flashParams_dict)
+        self.logger(f"flash loan completed : {tx_hash} elapsed in {time.perf_counter() - start:0.2f} seconds")
 
-        self.logger(f"flash loan completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
+        return success, tx_hash, receipt
 
-        return result
+
 
     async def execute_trade_1(self):
         start = time.perf_counter()
