@@ -32,11 +32,13 @@ class Uniswap:
         :param provider: the provider to be used in Web3 instance.
         :param default_slippage: - NOT YET IMPLEMENTED - Default slippage for a trade, as a float (0.01 is 1%). WARNING: slippage is untested.
         """
+        self.network_config = network_config
         keys = pKeys
         if keys is None: print("No keys found.")
 
         self.private_key = keys and keys["privateKey"] or "0x0000000000000000000000000000000000000000000000000000000000000000"
-        self.address = keys and keys["publicKey"] or None
+        public_address = keys and keys["publicKey"] or "0x0000000000000000000000000000000000000000000000000000000000000000"
+        self.address = Web3.to_checksum_address(public_address)
 
         self.version = 3
         self.w3 = Web3(provider)

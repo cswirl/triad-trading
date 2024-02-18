@@ -3,7 +3,7 @@ from enum import Enum
 import web3
 from web3 import Web3
 
-from uniswap import uniswap_api
+from uniswap import uniswap_api, uniswap_helper
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
@@ -228,9 +228,9 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
         "token1": one.id,  # this is the token we need borrowing
         "token2": two.id,
         "token3": three.id,
-        "quote1": quotation_dict["quote1"],
-        "quote2": quotation_dict["quote2"],
-        "quote3": quotation_dict["quote3"],
+        "quote1":  uniswap_helper.decimal_right_shift(quotation_dict["quote1"], two.decimals),
+        "quote2": uniswap_helper.decimal_right_shift(quotation_dict["quote2"], three.decimals),
+        "quote3": uniswap_helper.decimal_right_shift(quotation_dict["quote3"], one.decimals),
         "fee1": quotation_dict["fee1"],
         "fee2": quotation_dict["fee2"],
         "fee3": quotation_dict["fee3"],
@@ -239,7 +239,7 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
 
     return FlashParams
 
-async def execute_flash(flashParams_dict):
+def execute_flash(flashParams_dict: dict):
     # Transaction variables
     chain_id = 11155111  # Sepolia
     gas = 300000
@@ -252,7 +252,21 @@ async def execute_flash(flashParams_dict):
     if flash is None:
         print("Error: flash loan contract did not load properly")
 
-    # Build Transaction -
+    # # Build Transaction -
+    # tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
+    #     # "from": uniswap.address,
+    #     # "chainId": chain_id,
+    #     # "value": 0,
+    #     # "gas": gas,
+    #     # "gasPrice": gas_price,
+    #     # "nonce": nonce
+    #     "chainId": chain_id,
+    #     "value": 0,
+    #     "gas": gas,
+    #     "gasPrice": gas_price,
+    #     "nonce": nonce
+    # })
+
     tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
         "chainId": chain_id,
         "value": 0,

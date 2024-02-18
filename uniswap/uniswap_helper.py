@@ -3,7 +3,8 @@ import os
 
 from web3 import Web3
 
-
+def decimal_right_shift(val, decimals: int):
+    return int(val * (10 ** decimals))
 
 
 #---------------------------------------------------------------------

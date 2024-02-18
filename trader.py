@@ -273,7 +273,7 @@ class Trader:
         self.logger(indent_1 + "executing flash loan")
         start = time.perf_counter()
 
-        result = await triad_util.execute_flash(flashParams_dict)
+        result = triad_util.execute_flash(flashParams_dict)
 
         self.logger(f"flash loan completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
