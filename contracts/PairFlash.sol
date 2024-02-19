@@ -19,7 +19,8 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     using LowGasSafeMath for int256;
 
     event LogInitFlash(address token_0, address token_1, address token1, uint256 borrowedAmount);
-    event LogCallBack(uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1,uint256 borrowedAmount);
+    event LogCallBackParams(address token0, address token1, uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1);
+    event LogCallBackInitParams(address token1, address token2, address token3, uint256 borrowedAmount);
     event LogSwap(uint256 indexed amountOut_min, uint256 indexed amountOut);
     event LogTotalOwing(uint256 totalOwing);
 
@@ -46,7 +47,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
 
-        emit LogCallBack(decoded.amount0, decoded.amount1, fee0, fee1, decoded.borrowedAmount);
+        emit LogCallBackParams(decoded.poolKey.token0, decoded.poolKey.token1, decoded.amount0, decoded.amount1, fee0, fee1);
 
         // When this callback is invoked, it means this contract was already funded using pool.flash
         // in the function initFlash and stored in FlashCallbackData.borrowedAmount
@@ -64,6 +65,8 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         address token1 = decoded.token1;
         address token2 = decoded.token2;
         address token3 = decoded.token3;
+
+        emit LogCallBackInitParams(token1, token2, token3, decoded.borrowedAmount);
 
         // If any one of the three swaps fails, the whole transaction will fail because
         //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
@@ -126,10 +129,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         emit LogSwap(decoded.quote3, swap3_amountOut);
 
-        // token1 is the token we borrowed from
-        // token2 must be the opposite pair
-        // and the amount borrowed is stored in decoded.borrowedAmount
-
         // if no profitable, we do not pay back pool so whole transaction will revert itself
         // if profitable, pay profits to payer-->our wallet: decoded.payer
 
@@ -137,11 +136,12 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         // - however, the cost for the whole transaction is not included in the calculation
 
         if (swap3_amountOut > totalOwing) {
-            // pay back the pool-->msg.sender
-            TransferHelper.safeApprove(token1, address(this), amount0Owed);
-            TransferHelper.safeApprove(token2, address(this), amount1Owed);
-            if (amount0Owed > 0) pay(token1, address(this), msg.sender, amount0Owed);
-            if (amount1Owed > 0) pay(token2, address(this), msg.sender, amount1Owed);
+            // pay back the pool: pay both to make sure we don't miss any OR ElSE whole transaction will fail
+            TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
+            TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
+            // pool address-->msg.sender
+            if (amount0Owed > 0) pay(decoded.poolKey.token0, address(this), msg.sender, amount0Owed);
+            if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
 
             uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, amount0Owed);
             // pay our wallet-->decoded.payer
@@ -204,7 +204,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
 
-        // recipient of borrowed amounts - recipient of flash should be THIS contract
+        // recipient of borrowed amounts - recipient of flash should be THIS contract address
         // amount of token0 requested to borrow
         // amount of token1 requested to borrow
         //  - need amount 0 and amount1 in callback to pay back pool
