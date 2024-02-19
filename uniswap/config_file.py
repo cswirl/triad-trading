@@ -49,7 +49,7 @@ Networks = {
             "abiName": "sepolia_quoter"
         },
         "flashLoan": {
-            "address": Web3.to_checksum_address("0x250f1ACeC4e0C17c0c80cBF8Fc98e2980213a7f8"),
+            "address": Web3.to_checksum_address("0x05ed0506ff119E36A6524a14779EAA391Cb2e7DE"),
             "abiName": "sepolia_flash_loan"
         }
     },
@@ -61,11 +61,8 @@ Networks = {
         "quoter": {
             "address": Web3.to_checksum_address("0xC5290058841028F1614F3A6F0F5816cAd0df5E27"),
             "abiName": "op_sepolia_quoter"
-        },
-        "flashLoan": {
-            "address": Web3.to_checksum_address(""),
-            "abiName": "op_sepolia_flash_loan"
         }
+
     },
     "mainnet": {
         "chainId": "1",

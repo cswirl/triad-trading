@@ -3,21 +3,52 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
+				"indexed": false,
+				"internalType": "address",
+				"name": "token1",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "token2",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "token3",
+				"type": "address"
+			},
+			{
+				"indexed": false,
 				"internalType": "uint256",
-				"name": "borrowed",
+				"name": "borrowedAmount",
 				"type": "uint256"
+			}
+		],
+		"name": "LogCallBackInitParams",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "token0",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "token1",
+				"type": "address"
 			},
 			{
 				"indexed": false,
 				"internalType": "uint256",
 				"name": "amount0",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "fee0",
 				"type": "uint256"
 			},
 			{
@@ -29,24 +60,36 @@
 			{
 				"indexed": false,
 				"internalType": "uint256",
+				"name": "fee0",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
 				"name": "fee1",
 				"type": "uint256"
 			}
 		],
-		"name": "LogCallBack",
+		"name": "LogCallBackParams",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
+				"indexed": false,
 				"internalType": "address",
-				"name": "token0",
+				"name": "token_0",
 				"type": "address"
 			},
 			{
-				"indexed": true,
+				"indexed": false,
+				"internalType": "address",
+				"name": "token_1",
+				"type": "address"
+			},
+			{
+				"indexed": false,
 				"internalType": "address",
 				"name": "token1",
 				"type": "address"
@@ -54,11 +97,43 @@
 			{
 				"indexed": false,
 				"internalType": "uint256",
-				"name": "borrowed",
+				"name": "borrowedAmount",
 				"type": "uint256"
 			}
 		],
-		"name": "LogInit",
+		"name": "LogInitFlash",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "amountOut_min",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "amountOut",
+				"type": "uint256"
+			}
+		],
+		"name": "LogSwap",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "totalOwing",
+				"type": "uint256"
+			}
+		],
+		"name": "LogTotalOwing",
 		"type": "event"
 	},
 	{
@@ -133,6 +208,11 @@
 					{
 						"internalType": "uint24",
 						"name": "fee3",
+						"type": "uint24"
+					},
+					{
+						"internalType": "uint24",
+						"name": "sqrtPriceLimitX96",
 						"type": "uint24"
 					},
 					{

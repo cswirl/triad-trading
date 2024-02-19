@@ -116,6 +116,7 @@ class TestDeployer(unittest.TestCase):
             "fee1": fee1,
             "fee2": fee2,
             "fee3": fee3,
+            "sqrtPriceLimitX96": 0,  # we do not understand this as of now
             "addToDeadline": addToDeadline
         }
 
@@ -160,7 +161,7 @@ class TestDeployer(unittest.TestCase):
 
         # Send transaction
         sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        print(sent_tx)
+        print(tu.w3.to_hex(sent_tx))
 
         #tx_hash = greeter.functions.setGreeting('Nihao').transact()
 

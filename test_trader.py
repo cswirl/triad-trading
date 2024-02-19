@@ -56,7 +56,8 @@ class TestTrader(unittest.TestCase):
             "USDC_WETH_APE",
             self._test_depth_rate,
             # triad_util.get_depth_rate,
-            self._test_execute_flash,
+            triad_util.execute_flash,
+            #self._test_execute_flash,
             calculate_seed_fund=triad_util.get_seed_fund
         )
         gt.g_trader_list = [trader]

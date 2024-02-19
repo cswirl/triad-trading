@@ -221,10 +221,10 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
         borrowed_amount = amount_1
 
     FlashParams = {
-        "token_0": token0.id,
+        "token_0": token0.id,   # zeroForOne is used to correct ordering which is token_0 or token_1
         "token_1": token1.id,
-        "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
-        "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
+        "amount0": amount_0,
+        "amount1": amount_1,
         "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
         "token1": one.id,  # this is the token we need borrowing
         "token2": two.id,
@@ -235,6 +235,7 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
         "fee1": quotation_dict["fee1"],
         "fee2": quotation_dict["fee2"],
         "fee3": quotation_dict["fee3"],
+        "sqrtPriceLimitX96": 0,         # we do not understand this as of now
         "addToDeadline": addToDeadline
     }
 
@@ -242,12 +243,6 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
 
 def execute_flash(flashParams_dict: dict):
     # Transaction variables
-    chain_id = 11155111  # Sepolia
-    gas = 300000
-    gas_price = Web3.to_wei("5.5", "gwei")
-
-    # Nonce
-    nonce = w3.eth.get_transaction_count(uniswap.address)  # public address of the sender i.e. your account
 
     flash = uniswap.flash_loan
     if flash is None:
@@ -271,7 +266,10 @@ def execute_flash(flashParams_dict: dict):
 
     tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
         "nonce": uniswap.last_nonce,
-        "chainId": uniswap.chain_id
+        "chainId": uniswap.chain_id,
+        "value": 0,
+        "gas": 300000,
+        "gasPrice": Web3.to_wei("5.5", "gwei")
     })
 
     # Sign transaction
@@ -308,7 +306,7 @@ def load_keys_from_file():
 
 
 keys = load_keys_from_file()
-network = uniswap_api.get_network("mainnet")
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
