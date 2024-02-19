@@ -193,6 +193,9 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     /// @param params The parameters necessary for flash and the callback, passed in as FlashParams
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash(FlashParams memory params) external {
+
+        emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
+
         // token0 and token1 must be in correct place or else ot will throw exception because
         // PoolAddress.computeAddress function has require(key.token0 < key.token1)
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
@@ -200,9 +203,10 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             token1: params.token_1,
             fee: params.fee1
             });
-        IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
 
         emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
+
+        IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
 
         // recipient of borrowed amounts - recipient of flash should be THIS contract address
         // amount of token0 requested to borrow
