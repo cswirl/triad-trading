@@ -51,6 +51,11 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint256 amount0Owed = LowGasSafeMath.add(decoded.borrowedAmount, fee0);
         uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
 
+        // Calculate the amount to repay at the end
+        uint256 totalOwing = 0; //decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
+
+        emit LogTotalOwing(totalOwing);
+
         // get pathway triplet token addresses
         address token1 = decoded.token1;
         address token2 = decoded.token2;
@@ -68,6 +73,81 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         TransferHelper.safeApprove(token2, address(this), amount1Owed);
         if (amount0Owed > 0) pay(token1, address(this), msg.sender, amount0Owed);
         if (amount1Owed > 0) pay(token2, address(this), msg.sender, amount1Owed);
+
+        uint256 swap1_amountOut =
+            swapRouter.exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token1,
+                    tokenOut: token2,
+                    fee: decoded.poolFee1,
+                    recipient: address(this),
+                    deadline: block.timestamp + decoded.addToDeadline,
+                    amountIn: decoded.borrowedAmount,
+                    amountOutMinimum: decoded.quote1,
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+                })
+            );
+
+        emit LogSwap(decoded.quote1, swap1_amountOut);
+
+//        // swap 2: swapping token 2 for token 3 - using fee used in quotation
+//        TransferHelper.safeApprove(token2, address(swapRouter), swap1_amountOut);
+//
+//        uint256 swap2_amountOut =
+//            swapRouter.exactInputSingle(
+//                ISwapRouter.ExactInputSingleParams({
+//                    tokenIn: token2,
+//                    tokenOut: token3,
+//                    fee: decoded.poolFee2,
+//                    recipient: address(this),
+//                    deadline: block.timestamp + decoded.addToDeadline,
+//                    amountIn: swap1_amountOut,
+//                    amountOutMinimum: decoded.quote2,
+//                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+//                })
+//            );
+//
+//        emit LogSwap(decoded.quote2, swap2_amountOut);
+
+//        // swap 3: swapping token 3 for token 1 - using fee used in quotation
+//        TransferHelper.safeApprove(token3, address(swapRouter), swap2_amountOut);
+//
+//        uint256 swap3_amountOut =
+//            swapRouter.exactInputSingle(
+//                ISwapRouter.ExactInputSingleParams({
+//                    tokenIn: token3,
+//                    tokenOut: token1,
+//                    fee: decoded.poolFee3,
+//                    recipient: address(this),
+//                    deadline: block.timestamp + decoded.addToDeadline,
+//                    amountIn: swap2_amountOut,
+//                    amountOutMinimum: decoded.quote3,
+//                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+//                })
+//            );
+//
+//        emit LogSwap(decoded.quote3, swap3_amountOut);
+
+        // if no profitable, we do not pay back pool so whole transaction will revert itself
+        // if profitable, pay profits to payer-->our wallet: decoded.payer
+
+        // this calculation recognized that the fee is included for each swap
+        // - however, the cost for the whole transaction is not included in the calculation
+
+        swap3_amountOut = swap1_amountOut;
+        if (swap3_amountOut > totalOwing) {
+            // pay back the pool: pay both to make sure we don't miss any OR ElSE whole transaction will fail
+            TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
+            TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
+            // pool address-->msg.sender
+            if (amount0Owed > 0) pay(decoded.poolKey.token0, address(this), msg.sender, amount0Owed);
+            if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
+
+            uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, amount0Owed);
+            // pay our wallet-->decoded.payer
+            TransferHelper.safeApprove(token1, address(this), profit0);
+            pay(token1, address(this), decoded.payer, profit0);
+        }
 
     }
 
