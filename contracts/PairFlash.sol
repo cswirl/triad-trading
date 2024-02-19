@@ -57,22 +57,21 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         // Calculate the amount to repay at the end
         uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
-        emit LogTotalOwing(totalOwing);
 
-        //uint256 totalOwing = decoded.borrowedAmount + fee;
+        emit LogTotalOwing(totalOwing);
 
         // get pathway triplet token addresses
         address token1 = decoded.token1;
         address token2 = decoded.token2;
         address token3 = decoded.token3;
 
-        // If any one of the three swaps fails, the whole transaction will fail
+        // If any one of the three swaps fails, the whole transaction will fail because
         //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
         //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
 
         // swap 1: swapping token1 for token2 in pool - use fee0 from callback argument
         TransferHelper.safeApprove(token1, address(swapRouter), decoded.borrowedAmount);
-        //uint256 swap1_amountOut_min = LowGasSafeMath.add(decoded.quote1, fee0);
+
         uint256 swap1_amountOut =
             swapRouter.exactInputSingle(
                 ISwapRouter.ExactInputSingleParams({
@@ -83,7 +82,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     deadline: block.timestamp + decoded.addToDeadline,
                     amountIn: decoded.borrowedAmount,
                     amountOutMinimum: decoded.quote1,
-                    sqrtPriceLimitX96: 0
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
                 })
             );
 
@@ -91,7 +90,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         // swap 2: swapping token 2 for token 3 - using fee used in quotation
         TransferHelper.safeApprove(token2, address(swapRouter), swap1_amountOut);
-        //uint256 swap2_amountOut_min = LowGasSafeMath.add(decoded.quote2, decoded.poolFee2);
+
         uint256 swap2_amountOut =
             swapRouter.exactInputSingle(
                 ISwapRouter.ExactInputSingleParams({
@@ -102,7 +101,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     deadline: block.timestamp + decoded.addToDeadline,
                     amountIn: swap1_amountOut,
                     amountOutMinimum: decoded.quote2,
-                    sqrtPriceLimitX96: 0
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
                 })
             );
 
@@ -110,7 +109,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         // swap 3: swapping token 3 for token 1 - using fee used in quotation
         TransferHelper.safeApprove(token3, address(swapRouter), swap2_amountOut);
-        //uint256 swap3_amountOut_min = LowGasSafeMath.add(decoded.quote3, decoded.poolFee3);
+
         uint256 swap3_amountOut =
             swapRouter.exactInputSingle(
                 ISwapRouter.ExactInputSingleParams({
@@ -121,14 +120,15 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     deadline: block.timestamp + decoded.addToDeadline,
                     amountIn: swap2_amountOut,
                     amountOutMinimum: decoded.quote3,
-                    sqrtPriceLimitX96: 0
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
                 })
             );
 
         emit LogSwap(decoded.quote3, swap3_amountOut);
 
-        // token 1 is the token we borrowed from
-        // and the amount owing is stored in decoded.borrowedAmount
+        // token1 is the token we borrowed from
+        // token2 must be the opposite pair
+        // and the amount borrowed is stored in decoded.borrowedAmount
 
         // if no profitable, we do not pay back pool so whole transaction will revert itself
         // if profitable, pay profits to payer-->our wallet: decoded.payer
@@ -167,6 +167,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 fee1;
         uint24 fee2;
         uint24 fee3;
+        uint24 sqrtPriceLimitX96;
         uint24 addToDeadline;
     }
     //
@@ -185,6 +186,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 poolFee1;
         uint24 poolFee2;
         uint24 poolFee3;
+        uint24 sqrtPriceLimitX96;
         uint24 addToDeadline;
     }
 
@@ -226,6 +228,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     poolFee1: params.fee1,
                     poolFee2: params.fee2,
                     poolFee3: params.fee3,
+                    sqrtPriceLimitX96: params.sqrtPriceLimitX96,
                     addToDeadline: params.addToDeadline
                 })
             )
