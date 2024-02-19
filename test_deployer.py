@@ -65,6 +65,22 @@ class TestDeployer(unittest.TestCase):
 
         :return:
         """
+
+        # sepolia
+
+        weth = Web3.to_checksum_address("0xfff9976782d46cc05630d1f6ebab18b2324d6b14")
+        usdc = Web3.to_checksum_address("0x6f14c02fc1f78322cfd7d707ab90f18bad3b54f5")
+        fork = Web3.to_checksum_address("0x19c604943a94fa72afe49c11f6974fa5fbfef8ac")
+
+        CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
+
+        t_weth = CryptoToken(weth, "WETH", 18)
+        t_usdt = CryptoToken(usdc, "USDT", 6)
+        t_rlb = CryptoToken(fork, "FORK", 18)
+
+
+
+
         swap1_amount = 100
         swap1_amount1 = 0 #0.03978381769984377
 
@@ -110,9 +126,9 @@ class TestDeployer(unittest.TestCase):
             "token1": one.id,  # this is the token we need borrowing
             "token2": two.id,
             "token3": three.id,
-            "quote1": int(0.03978381769984377 * (10 ** two.decimals)),
-            "quote2": int(777.5967111439336 * (10 ** three.decimals)),
-            "quote3": int(100.196489 * (10 ** one.decimals)),
+            "quote1": 0,
+            "quote2": 0,
+            "quote3": 0,
             "fee1": fee1,
             "fee2": fee2,
             "fee3": fee3,
