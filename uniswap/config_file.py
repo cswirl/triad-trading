@@ -36,20 +36,20 @@ TickSpacing = {
 
 }
 
-WETH9 = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+SEPOLIA_WETH9 = Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14")
 
 Networks = {
     "sepolia": {
         "chainId": "11155111",
         "provider": SEPOLIA_PROVIDER,
         "factory":  Web3.to_checksum_address("0x0227628f3F023bb0B980b67D528571c95c6DaC1c"),
-        "router": Web3.to_checksum_address("0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"),
+        "router": Web3.to_checksum_address("0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD"),
         "quoter": {
             "address": Web3.to_checksum_address("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3"),
             "abiName": "sepolia_quoter"
         },
         "flashLoan": {
-            "address": Web3.to_checksum_address("0x05ed0506ff119E36A6524a14779EAA391Cb2e7DE"),
+            "address": Web3.to_checksum_address("0x0747556f9b1bB317B9f20a1292e5067F77dFcc13"),
             "abiName": "sepolia_flash_loan"
         }
     },
