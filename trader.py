@@ -201,15 +201,25 @@ class Trader:
         profit_loss = test_amount and amount_out_3 - test_amount
         profit_loss_perc = test_amount and profit_loss / float(test_amount) * 100
 
+        loan_fee = test_amount * fee1/1000000
+        profit_threshold = loan_fee + TRANSACTION_FEE + PROFIT_MINIMUM
+
         self.logger("--------------------")
-        self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
+        #self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
         self.logger(f"PnL : {profit_loss}")
         self.logger(f"PnL % : {profit_loss_perc}")
+        self.logger("-------------")
+        self.logger(f"PnL Threshold : {profit_threshold}")
+        self.logger(f"Loan fee : {loan_fee}")
+        self.logger(f"Tx fee : {TRANSACTION_FEE}")
+        self.logger(f"Min. Profit Target : {PROFIT_MINIMUM}")
+        self.logger("-------------")
+        self.logger(f"Real Profit : {profit_loss - profit_threshold} <---(PnL minus PnL Threshold)")
         self.logger("--------------------")
 
         self.save_logs()
 
-        if profit_loss_perc >= DEPTH_MIN_RATE:
+        if profit_loss >= profit_threshold:
             self.logger(indent_1 + "Profit Found")
             self.save_logs()
 
