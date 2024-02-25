@@ -304,9 +304,8 @@ def load_keys_from_file():
     except json.JSONDecodeError:
         print(f"error decoding JSON in file '{file_path}'.")
 
-
 keys = load_keys_from_file()
-network = uniswap_api.get_network("sepolia")
+network = uniswap_api.get_network("mainnet")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)

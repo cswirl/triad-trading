@@ -54,7 +54,7 @@ CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
 
 # ---------------- TESTING --------------------------------------------
 # FOR TEST RUN - better to start small! then adjust little by little
-MULTI = 10
+MULTI = 20
 FUNDING_TIER_0 = 100 * MULTI    #all stable coins
 FUNDING_TIER_1 = 80 * MULTI
 FUNDING_TIER_2 = 50 * MULTI

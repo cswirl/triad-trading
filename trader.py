@@ -8,6 +8,7 @@ from enum import Enum
 from web3.exceptions import ContractLogicError, TimeExhausted
 
 import global_triad as gt
+import utils
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -83,6 +84,8 @@ class Trader:
             # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
             quotation_dict = await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
+            if quotation_dict:
+                utils.play_sound()
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
