@@ -5,6 +5,7 @@ from web3 import Web3
 from web3.exceptions import TimeExhausted
 
 from uniswap import uniswap_api, uniswap_helper
+from uniswap.constants import PAIRS_DELIMITER
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
@@ -48,9 +49,11 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     token0 = uniswap_api.get_token(token0_symbol)
     token1 = uniswap_api.get_token(token1_symbol)
 
-    amount_out = uniswap.quote_price_input(token0, token1, amount_in)
+    fee_tier = int(uniswap_api.find_pair_object(token0_symbol + PAIRS_DELIMITER + token1_symbol).fee_tier) or 3000
 
-    return amount_out
+    amount_out = uniswap.quote_price_input(token0, token1, amount_in, fee=fee_tier)
+
+    return amount_out, fee_tier
 
 def get_seed_fund(symbol, pathway_triplet_set):
 

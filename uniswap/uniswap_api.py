@@ -6,8 +6,7 @@ from web3 import Web3
 from uniswap import token_pair, utils, func_triangular_arb
 from uniswap.config_file import *
 from uniswap.constants import *
-
-
+from uniswap.token_pair import TradingPair
 
 """ RETRIEVE GRAPH QL MID PRICES FOR UNISWAP """
 def retrieve_uniswap_information():
@@ -143,10 +142,10 @@ def create_tokens_and_trading_pairs(data_pools:[]):
             quote_token
         )
 
-        if pair_symbol in pairs_map.keys():
-            pairs_map[pair_symbol].append(pool)
+        if generate_pool_key(pair_symbol) in pairs_map.keys():
+            pairs_map[generate_pool_key(pair_symbol)].append(pool)
         else:
-            pairs_map[pair_symbol] = [pool]
+            pairs_map[generate_pool_key(pair_symbol)] = [pool]
 
 
     #save to json file for study
@@ -179,7 +178,7 @@ def _save_trading_pairs(pairs_dict_list: []):
             pools_list.append(pair_dict)
 
         pools_dict = {
-            "tradingPairSymbol": k,
+            "poolKey": k,
             "poolsTotal": len(pools_list),
             "pools": pools_list
         }
@@ -236,7 +235,7 @@ def _recreate_triad_structure(pools_data):
 # #####################################################
 #     Utilities
 # #####################################################
-def find_pair_object(pair_symbol):
+def find_pair_object(pair_symbol)->TradingPair:
     """
     Find the TradingPair object instance in the pairs_map
 
@@ -244,10 +243,12 @@ def find_pair_object(pair_symbol):
     :return pair_obj (TradingPair or None): TradingPair instance
     """
     try:
+        pair_symbol = generate_pool_key(pair_symbol)
         pair_obj = (pair_symbol in PAIRS_DICT and PAIRS_DICT[pair_symbol]) or None
         if pair_obj or len(pair_obj) > 1:
             # todo: get the pool with greatest amount of tvl eth?
             #return max(pair_obj, key=lambda x : x.tvl_eth)
+            #already sorted by tvlETH
             return pair_obj[0] # using shaun algorithm where it uses the first pool found
         else:
             print(f"Key '{pair_symbol}' does not exist in the list of Trading Pairs.")
@@ -274,6 +275,10 @@ def get_token(symbol):
         print(f"Key '{symbol}' does not exist in the Tokens dictionary list.")
 
     return token
+
+def generate_pool_key(pair_symbol: str):
+    pool_key = sorted(pair_symbol.split(PAIRS_DELIMITER))
+    return "_".join(pool_key)
 
 
 #-----------------------------------------------------------------

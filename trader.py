@@ -1,4 +1,5 @@
 import asyncio
+import random
 import time
 import uuid
 import traceback
@@ -8,7 +9,7 @@ from enum import Enum
 from web3.exceptions import ContractLogicError, TimeExhausted
 
 import global_triad as gt
-import utils
+import utils as u
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -85,7 +86,7 @@ class Trader:
             quotation_dict = await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
             if quotation_dict:
-                utils.play_sound()
+                u.play_sound()
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
@@ -161,6 +162,9 @@ class Trader:
         self.logger("Changing state: 'Hunting Profit'")
         self.internal_state = TraderState.HUNTING, "Hunting Profit"
         while True:
+            sleep_time = calculate_sleep_time()  * random.uniform(0.01, 1)
+            self.logger(f"sleep time {sleep_time}")
+            await asyncio.sleep(sleep_time)
 
             if self.hunt_profit_flag == False:
                 continue
@@ -171,30 +175,27 @@ class Trader:
                 self.logger("Changing State: 'Trading'")
                 return quotation_dict
 
-            sleep_time = calculate_sleep_time()
-            self.logger(f"sleep time {sleep_time}")
-            await asyncio.sleep(sleep_time)
-
 
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
 
         self.logger(indent_1 + "Inquiring price")
 
         token1, token2, token3 = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)
+        fee1 = fee2 = fee3 = GAS_FEE
 
         test_amount = self.test_fund
 
         if amount_out_1 == 0:
-            amount_out_1 = func_depth_rate(token1,token2, test_amount)
-            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2}")
+            amount_out_1, fee1 = func_depth_rate(token1,token2, test_amount)
+            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2} --- fee tier: {fee1}")
 
         if amount_out_2 == 0:
-            amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
-            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
+            amount_out_2, fee2 = func_depth_rate(token2, token3, amount_out_1)
+            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3} --- fee tier: {fee2}")
 
         if amount_out_3 == 0:
-            amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
-            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
+            amount_out_3, fee3 = func_depth_rate(token3, token1, amount_out_2)
+            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1} --- fee tier: {fee3}")
 
         # calculate pnl and pnl percentage
         profit_loss = test_amount and amount_out_3 - test_amount
@@ -218,9 +219,9 @@ class Trader:
                 "quote1": amount_out_1,
                 "quote2": amount_out_2,
                 "quote3": amount_out_3,
-                "fee1": GAS_FEE,
-                "fee2": GAS_FEE,
-                "fee3": GAS_FEE
+                "fee1": fee1,
+                "fee2": fee2,
+                "fee3": fee3
             }
             return (True, quotation_dict)
 
