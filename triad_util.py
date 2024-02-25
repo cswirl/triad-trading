@@ -2,8 +2,10 @@ import json
 from enum import Enum
 import web3
 from web3 import Web3
+from web3.exceptions import TimeExhausted
 
-from uniswap import uniswap_api
+from uniswap import uniswap_api, uniswap_helper
+from uniswap.constants import PAIRS_DELIMITER
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
@@ -47,9 +49,11 @@ def get_depth_rate(token0_symbol, token1_symbol, amount_in):
     token0 = uniswap_api.get_token(token0_symbol)
     token1 = uniswap_api.get_token(token1_symbol)
 
-    amount_out = uniswap.quote_price_input(token0, token1, amount_in)
+    fee_tier = int(uniswap_api.find_pair_object(token0_symbol + PAIRS_DELIMITER + token1_symbol).fee_tier) or 3000
 
-    return amount_out
+    amount_out = uniswap.quote_price_input(token0, token1, amount_in, fee=fee_tier)
+
+    return amount_out, fee_tier
 
 def get_seed_fund(symbol, pathway_triplet_set):
 
@@ -167,7 +171,7 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
-def flashloan_struct_param(pathway_triplet: str, seed_amount, quotation_dict: dict):
+def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     """
             "Greetings from USDT_WETH_RLB_2f31aaa2-93c5-4540-8cf5-6147d3e79c0e",
             "Active Traders: 156  (inaccurate: testing for sleep calculation)",
@@ -220,45 +224,55 @@ def flashloan_struct_param(pathway_triplet: str, seed_amount, quotation_dict: di
         borrowed_amount = amount_1
 
     FlashParams = {
-        "token_0": token0.id,
+        "token_0": token0.id,   # zeroForOne is used to correct ordering which is token_0 or token_1
         "token_1": token1.id,
-        "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
-        "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
+        "amount0": amount_0,
+        "amount1": amount_1,
         "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
         "token1": one.id,  # this is the token we need borrowing
         "token2": two.id,
         "token3": three.id,
-        "quote1": quotation_dict["quote1"],
-        "quote2": quotation_dict["quote2"],
-        "quote3": quotation_dict["quote3"],
+        "quote1":  uniswap_helper.decimal_right_shift(quotation_dict["quote1"], two.decimals),
+        "quote2": uniswap_helper.decimal_right_shift(quotation_dict["quote2"], three.decimals),
+        "quote3": uniswap_helper.decimal_right_shift(quotation_dict["quote3"], one.decimals),
         "fee1": quotation_dict["fee1"],
         "fee2": quotation_dict["fee2"],
         "fee3": quotation_dict["fee3"],
+        "sqrtPriceLimitX96": 0,         # we do not understand this as of now
         "addToDeadline": addToDeadline
     }
 
     return FlashParams
 
-async def execute_flash(flashParams_dict):
+def execute_flash(flashParams_dict: dict):
     # Transaction variables
-    chain_id = 11155111  # Sepolia
-    gas = 300000
-    gas_price = Web3.to_wei("5.5", "gwei")
-
-    # Nonce
-    nonce = w3.eth.get_transaction_count(uniswap.address)  # public address of the sender i.e. your account
 
     flash = uniswap.flash_loan
     if flash is None:
         print("Error: flash loan contract did not load properly")
+        return (False, None, None)
 
-    # Build Transaction -
+    # # Build Transaction -
+    # tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
+    #     # "from": uniswap.address,
+    #     # "chainId": chain_id,
+    #     # "value": 0,
+    #     # "gas": gas,
+    #     # "gasPrice": gas_price,
+    #     # "nonce": nonce
+    #     "chainId": chain_id,
+    #     "value": 0,
+    #     "gas": gas,
+    #     "gasPrice": gas_price,
+    #     "nonce": nonce
+    # })
+
     tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
-        "chainId": chain_id,
+        "nonce": uniswap.last_nonce,
+        "chainId": uniswap.chain_id,
         "value": 0,
-        "gas": gas,
-        "gasPrice": gas_price,
-        "nonce": nonce
+        "gas": 300000,
+        "gasPrice": Web3.to_wei("5.5", "gwei")
     })
 
     # Sign transaction
@@ -266,11 +280,18 @@ async def execute_flash(flashParams_dict):
 
     # Send transaction
     sent_tx = w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-    print(sent_tx)
+    tx_hash = w3.to_hex(sent_tx)
 
-    # tx_hash = greeter.functions.setGreeting('Nihao').transact()
+    try:
+        # see https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.wait_for_transaction_receipt
+        tx_receipt = w3.eth.wait_for_transaction_receipt(sent_tx, timeout=flashParams_dict["addToDeadline"])
+        print(tx_hash)
 
-    # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        return (int(tx_receipt["status"]), tx_hash, tx_receipt)
+    except TimeExhausted as e:
+        print(f"Error - TimeExhausted - {e} - hash: {tx_hash}")
+        return (False, tx_hash, None)
+
 
 def load_keys_from_file():
 
@@ -285,7 +306,6 @@ def load_keys_from_file():
         print(f"error loading json data: File '{file_path}' not found.")
     except json.JSONDecodeError:
         print(f"error decoding JSON in file '{file_path}'.")
-
 
 keys = load_keys_from_file()
 network = uniswap_api.get_network("mainnet")

@@ -36,24 +36,36 @@ TickSpacing = {
 
 }
 
-WETH9 = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+SEPOLIA_WETH9 = Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14")
 
 Networks = {
     "sepolia": {
+        "chainId": "11155111",
         "provider": SEPOLIA_PROVIDER,
         "factory":  Web3.to_checksum_address("0x0227628f3F023bb0B980b67D528571c95c6DaC1c"),
-        "router": Web3.to_checksum_address("0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E"),
+        "router": Web3.to_checksum_address("0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD"),
         "quoter": {
             "address": Web3.to_checksum_address("0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3"),
             "abiName": "sepolia_quoter"
         },
         "flashLoan": {
-            "address": Web3.to_checksum_address("0x2a4d0eD2b3ED22373018C46C4Db0f488A7250dD0"),
-            "abiName": "flash_loan"
+            "address": Web3.to_checksum_address("0x0747556f9b1bB317B9f20a1292e5067F77dFcc13"),
+            "abiName": "sepolia_flash_loan"
+        }
+    },
+    "opSepolia": {
+        "chainId": "11155420",
+        "provider": "https://sepolia.optimism.io/",
+        "factory":  Web3.to_checksum_address("0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24"),
+        "router": Web3.to_checksum_address("0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4"),
+        "quoter": {
+            "address": Web3.to_checksum_address("0xC5290058841028F1614F3A6F0F5816cAd0df5E27"),
+            "abiName": "op_sepolia_quoter"
         }
 
     },
     "mainnet": {
+        "chainId": "1",
         "provider": MAINNET_PROVIDER,
         "factory": Web3.to_checksum_address("0x1F98431c8aD98523631AE4a59f267346ea31F984"),
         "router": Web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564"),

@@ -65,7 +65,23 @@ class TestDeployer(unittest.TestCase):
 
         :return:
         """
-        swap1_amount = 100
+
+        # sepolia
+
+        weth = Web3.to_checksum_address("0xfff9976782d46cc05630d1f6ebab18b2324d6b14")
+        usdc = Web3.to_checksum_address("0x6f14c02fc1f78322cfd7d707ab90f18bad3b54f5")
+        fork = Web3.to_checksum_address("0x19c604943a94fa72afe49c11f6974fa5fbfef8ac")
+
+        CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
+
+        t_weth = CryptoToken(weth, "WETH", 18)
+        t_usdt = CryptoToken(usdc, "USDC", 6)
+        t_rlb = CryptoToken(fork, "FORK", 18)
+
+
+
+
+        swap1_amount = 10
         swap1_amount1 = 0 #0.03978381769984377
 
         # the fee used in the quoter is the same
@@ -110,12 +126,13 @@ class TestDeployer(unittest.TestCase):
             "token1": one.id,  # this is the token we need borrowing
             "token2": two.id,
             "token3": three.id,
-            "quote1": int(0.03978381769984377 * (10 ** two.decimals)),
-            "quote2": int(777.5967111439336 * (10 ** three.decimals)),
-            "quote3": int(100.196489 * (10 ** one.decimals)),
+            "quote1": 0,
+            "quote2": 0,
+            "quote3": 0,
             "fee1": fee1,
             "fee2": fee2,
             "fee3": fee3,
+            "sqrtPriceLimitX96": 0,  # we do not understand this as of now
             "addToDeadline": addToDeadline
         }
 
@@ -150,7 +167,7 @@ class TestDeployer(unittest.TestCase):
         tx_build = flash.functions.initFlash(params).build_transaction({
             "chainId": chain_id,
             "value": 0,
-            "gas": gas,
+            "gas": 8000000,
             "gasPrice": gas_price,
             "nonce": nonce
         })
@@ -160,11 +177,13 @@ class TestDeployer(unittest.TestCase):
 
         # Send transaction
         sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        print(sent_tx)
+        print(tu.w3.to_hex(sent_tx))
 
-        #tx_hash = greeter.functions.setGreeting('Nihao').transact()
+        tx_receipt = tu.w3.eth.wait_for_transaction_receipt(sent_tx, timeout=params["addToDeadline"])
+        print(tx_receipt)
+        pass
 
-        #tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
 
 
 
