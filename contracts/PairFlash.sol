@@ -129,25 +129,27 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         emit LogSwap(decoded.quote3, swap3_amountOut);
 
-        // if no profitable, we do not pay back pool so whole transaction will revert itself
-        // if profitable, pay profits to payer-->our wallet: decoded.payer
-
         // this calculation recognized that the fee is included for each swap
         // - however, the cost for the whole transaction is not included in the calculation
 
-        if (swap3_amountOut > totalOwing) {
-            // pay back the pool: pay both to make sure we don't miss any OR ElSE whole transaction will fail
-            TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
-            TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
-            // pool address-->msg.sender
-            if (amount0Owed > 0) pay(decoded.poolKey.token0, address(this), msg.sender, amount0Owed);
-            if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
+        // this minimum check must be met - it may save some gas
+        // - any profits even tiny will help offset the transaction cost, at the least 
+        require(swap3_amountOut > totalOwing, "Profit is less than total owing");
 
-            uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, amount0Owed);
-            // pay our wallet-->decoded.payer
-            TransferHelper.safeApprove(token1, address(this), profit0);
-            pay(token1, address(this), decoded.payer, profit0);
-        }
+        // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
+        // if profitable, send profits to payer-->our wallet: decoded.payer
+        
+        // pay back the pool: pay both to make sure we don't miss any OR ELSE whole transaction will fail
+        TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
+        TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
+        // pool address-->msg.sender
+        if (amount0Owed > 0) pay(decoded.poolKey.token0, address(this), msg.sender, amount0Owed);
+        if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
+
+        // pay our wallet-->decoded.payer
+        uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, decoded.borrowedAmount);
+        TransferHelper.safeApprove(token1, address(this), profit0);
+        pay(token1, address(this), decoded.payer, profit0);
 
     }
 
