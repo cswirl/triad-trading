@@ -68,18 +68,12 @@ class TestDeployer(unittest.TestCase):
 
         # sepolia
 
-        weth = Web3.to_checksum_address("0xfff9976782d46cc05630d1f6ebab18b2324d6b14")
-        usdc = Web3.to_checksum_address("0x6f14c02fc1f78322cfd7d707ab90f18bad3b54f5")
-        fork = Web3.to_checksum_address("0x19c604943a94fa72afe49c11f6974fa5fbfef8ac")
-
         CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
 
-        t_weth = CryptoToken(weth, "WETH", 18)
-        t_usdt = CryptoToken(usdc, "USDC", 6)
-        t_rlb = CryptoToken(fork, "FORK", 18)
-
-
-
+        # WETH_USDC pair : pool address 0x9D6b5ca80E3Cce67bcf829653ac32dE119F5E840
+        USDC = CryptoToken(Web3.to_checksum_address("0x5Afa26c6218b109199046C9475E313cb305404b6"), "USDC", 18)
+        WETH = CryptoToken(Web3.to_checksum_address("0x54EF5330659a178483aBc6d6567f6E571136E019"), "WETH", 18)
+        TRIAD = CryptoToken(Web3.to_checksum_address("0x652F7847906C57FdAceF58477cA5149B90E655e1"), "FORK", 18)
 
         swap1_amount = 10
         swap1_amount1 = 0 #0.03978381769984377
@@ -91,9 +85,9 @@ class TestDeployer(unittest.TestCase):
         addToDeadline = 200 # seconds
 
         # this is the order of the pathway triplet
-        one = t_usdt
-        two = t_weth
-        three = t_rlb
+        one = USDC
+        two = WETH
+        three = TRIAD
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
         # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
         zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
