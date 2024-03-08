@@ -73,7 +73,7 @@ class TestDeployer(unittest.TestCase):
         # WETH_USDC pair : pool address 0x9D6b5ca80E3Cce67bcf829653ac32dE119F5E840
         USDC = CryptoToken(Web3.to_checksum_address("0x5Afa26c6218b109199046C9475E313cb305404b6"), "USDC", 18)
         WETH = CryptoToken(Web3.to_checksum_address("0x54EF5330659a178483aBc6d6567f6E571136E019"), "WETH", 18)
-        TRIAD = CryptoToken(Web3.to_checksum_address("0x652F7847906C57FdAceF58477cA5149B90E655e1"), "FORK", 18)
+        TRIAD = CryptoToken(Web3.to_checksum_address("0x652F7847906C57FdAceF58477cA5149B90E655e1"), "TRIAD", 18)
 
         swap1_amount = 10
         swap1_amount1 = 0 #0.03978381769984377

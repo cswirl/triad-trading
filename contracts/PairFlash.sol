@@ -18,11 +18,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
 
-    event LogInitFlash(address token_0, address token_1, address token1, uint256 borrowedAmount);
-    event LogCallBackParams(address token0, address token1, uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1);
     event LogCallBackInitParams(address token1, address token2, address token3, uint256 borrowedAmount);
-    event LogSwap(uint256 indexed amountOut_min, uint256 indexed amountOut);
-    event LogTotalOwing(uint256 totalOwing);
 
     ISwapRouter public immutable swapRouter;
 
@@ -47,8 +43,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
 
-        emit LogCallBackParams(decoded.poolKey.token0, decoded.poolKey.token1, decoded.amount0, decoded.amount1, fee0, fee1);
-
         // When this callback is invoked, it means this contract was already funded using pool.flash
         // in the function initFlash and stored in FlashCallbackData.borrowedAmount
         // and that value can be accessed here via the decoded.borrowedAmount
@@ -58,8 +52,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         // Calculate the amount to repay at the end
         uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
-
-        emit LogTotalOwing(totalOwing);
 
         // get pathway triplet token addresses
         address token1 = decoded.token1;
@@ -89,8 +81,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                 })
             );
 
-        emit LogSwap(decoded.quote1, swap1_amountOut);
-
         // swap 2: swapping token 2 for token 3 - using fee used in quotation
         TransferHelper.safeApprove(token2, address(swapRouter), swap1_amountOut);
 
@@ -108,8 +98,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                 })
             );
 
-        emit LogSwap(decoded.quote2, swap2_amountOut);
-
         // swap 3: swapping token 3 for token 1 - using fee used in quotation
         TransferHelper.safeApprove(token3, address(swapRouter), swap2_amountOut);
 
@@ -126,8 +114,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
                 })
             );
-
-        emit LogSwap(decoded.quote3, swap3_amountOut);
 
         // this calculation recognized that the fee is included for each swap
         // - however, the cost for the whole transaction is not included in the calculation
@@ -196,8 +182,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash(FlashParams memory params) external {
 
-        emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
-
         // token0 and token1 must be in correct place or else ot will throw exception because
         // PoolAddress.computeAddress function has require(key.token0 < key.token1)
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
@@ -205,8 +189,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             token1: params.token_1,
             fee: params.fee1
             });
-
-        emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
 
         IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
 
