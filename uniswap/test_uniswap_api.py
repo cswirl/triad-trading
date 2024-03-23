@@ -80,6 +80,10 @@ class TestUniswapApi(unittest.TestCase):
         pass
 
     def test_quoter_compare(self):
+        """
+        May only work in mainnet as it is using Quoter not QuoterV2
+
+        """
         print("============ QUOTER COMPARE ===============")
         multi_output_amount =  self._test_quoter_multipool()
         print(f"Multipool Output amount: {multi_output_amount}")
@@ -87,13 +91,13 @@ class TestUniswapApi(unittest.TestCase):
         # Three separate swaps
         seed_amount = 100
 
-        swap1_output = self._test_quoter(t_usdc, t_weth, seed_amount)
+        swap1_output = _uniswap.quote_price_input(t_usdc, t_weth, seed_amount)
         print(f"Swap 1 : Swapping {seed_amount} {t_usdc.symbol} to {swap1_output} {t_weth.symbol}")
         # swap 2
-        swap2_output = self._test_quoter(t_weth, t_ape, swap1_output)
+        swap2_output = _uniswap.quote_price_input(t_weth, t_ape, swap1_output)
         print(f"Swap 2 : Swapping {swap1_output} {t_weth.symbol} to {swap2_output} {t_ape.symbol}")
         # swap 3
-        swap3_output = self._test_quoter(t_ape, t_usdc, swap2_output)
+        swap3_output = _uniswap.quote_price_input(t_ape, t_usdc, swap2_output)
         print(f"Swap 3 : Swapping {swap2_output} {t_ape.symbol} to {swap3_output} {t_usdc.symbol}")
 
     def test_quoter_single(self):
@@ -106,11 +110,11 @@ class TestUniswapApi(unittest.TestCase):
         amount_in = 10
         stable = token1
 
-        amount_out = self._test_quoter(token2, stable, amount_in)
+        amount_out = _uniswap.quote_price_input(token2, stable, amount_in)
         print(f"Quoter : Swapping {amount_in} {token2.symbol} for {amount_out} {stable.symbol}")
 
         amount_in = amount_out or 100
-        amount_out = self._test_quoter(stable, token2, amount_in)
+        amount_out = _uniswap.quote_price_input(stable, token2, amount_in)
         print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {token2.symbol}")
 
 
@@ -143,39 +147,6 @@ class TestUniswapApi(unittest.TestCase):
         except Exception as e:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
-
-
-    def _test_quoter(self, token0, token1, qty, fee = 3000):
-        quoter = _uniswap.quoter
-
-        qty_to_dec = qty * (10**token0.decimals)
-        sqrtPriceLimitX96 = 0
-
-        try:
-            #print(w3.api)
-            #print(quoter.functions.factory().call())
-
-            # Call a function on the contract that might raise an error
-            price = quoter.functions.quoteExactInputSingle(
-                token0.id,
-                token1.id,
-                fee,
-                int(qty_to_dec),
-                sqrtPriceLimitX96
-            ).call()
-
-            print(f"quoted price from quoter: {price / 10**token1.decimals}")
-
-            return price / 10**token1.decimals
-
-        except ContractLogicError as e:
-            # Handle contract-specific logic errors
-            print(f"Contract logic error: {e} - data: {e.data}")
-
-        except Exception as e:
-            # Handle other general exceptions
-            print(f"An error occurred: {e}")
-
 
 
     def test_main(self):
