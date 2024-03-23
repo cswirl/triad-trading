@@ -308,7 +308,7 @@ def load_keys_from_file():
         print(f"error decoding JSON in file '{file_path}'.")
 
 keys = load_keys_from_file()
-network = uniswap_api.get_network("mainnet")
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)

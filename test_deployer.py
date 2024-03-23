@@ -75,18 +75,24 @@ class TestDeployer(unittest.TestCase):
         WETH = CryptoToken(Web3.to_checksum_address("0x54EF5330659a178483aBc6d6567f6E571136E019"), "WETH", 18)
         TRIAD = CryptoToken(Web3.to_checksum_address("0x652F7847906C57FdAceF58477cA5149B90E655e1"), "TRIAD", 18)
 
-        swap1_amount = 10
+        # token 0
+        eETH = CryptoToken(Web3.to_checksum_address("0x0305ea0a4b43a12e3d130448e9b4711932231e83"), "WETH", 18)
+        # token 1
+        WETH9 = CryptoToken(Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14"), "WETH", 18)
+
+
+        swap1_amount = 0.005
         swap1_amount1 = 0 #0.03978381769984377
 
         # the fee used in the quoter is the same
-        fee1 = 3000
+        fee1 = 10000 # 3000
         fee2 = 3000
         fee3 = 3000
         addToDeadline = 200 # seconds
 
         # this is the order of the pathway triplet
-        one = USDC
-        two = WETH
+        one = WETH9
+        two = eETH
         three = TRIAD
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
         # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT

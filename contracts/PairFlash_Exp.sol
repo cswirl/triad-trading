@@ -18,11 +18,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
 
-    event LogInitFlash(address token_0, address token_1, address token1, uint256 borrowedAmount);
-    event LogCallBackParams(address token0, address token1, uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1);
     event LogCallBackInitParams(address token1, address token2, address token3, uint256 borrowedAmount);
-    event LogSwap(uint256 indexed amountOut_min, uint256 indexed amountOut);
-    event LogTotalOwing(uint256 totalOwing);
 
     ISwapRouter public immutable swapRouter;
 
@@ -47,8 +43,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
 
-        emit LogCallBackParams(decoded.poolKey.token0, decoded.poolKey.token1, decoded.amount0, decoded.amount1, fee0, fee1);
-
         // When this callback is invoked, it means this contract was already funded using pool.flash
         // in the function initFlash and stored in FlashCallbackData.borrowedAmount
         // and that value can be accessed here via the decoded.borrowedAmount
@@ -57,9 +51,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
 
         // Calculate the amount to repay at the end
-        uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
-
-        emit LogTotalOwing(totalOwing);
+        //uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
 
         // get pathway triplet token addresses
         address token1 = decoded.token1;
@@ -68,73 +60,29 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         emit LogCallBackInitParams(token1, token2, token3, decoded.borrowedAmount);
 
-        // // If any one of the three swaps fails, the whole transaction will fail because
-        // //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
-        // //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
+        // If any one of the three swaps fails, the whole transaction will fail because
+        //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
+        //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
 
-        // // swap 1: swapping token1 for token2 in pool - use fee0 from callback argument
-        // TransferHelper.safeApprove(token1, address(swapRouter), decoded.borrowedAmount);
+        // swap 1: swapping token1 for token2 in pool - use fee0 from callback argument
+        TransferHelper.safeApprove(token1, address(swapRouter), decoded.borrowedAmount);
 
-        // uint256 swap1_amountOut =
-        //     swapRouter.exactInputSingle(
-        //         ISwapRouter.ExactInputSingleParams({
-        //             tokenIn: token1,
-        //             tokenOut: token2,
-        //             fee: decoded.poolFee1,
-        //             recipient: address(this),
-        //             deadline: block.timestamp + decoded.addToDeadline,
-        //             amountIn: decoded.borrowedAmount,
-        //             amountOutMinimum: decoded.quote1,
-        //             sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
-        //         })
-        //     );
+        uint256 swap1_amountOut =
+            swapRouter.exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token1,
+                    tokenOut: token2,
+                    fee: decoded.poolFee1,
+                    recipient: address(this),
+                    deadline: block.timestamp + decoded.addToDeadline,
+                    amountIn: decoded.borrowedAmount,
+                    amountOutMinimum: decoded.quote1,
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+                })
+            );
 
-        // emit LogSwap(decoded.quote1, swap1_amountOut);
 
-        // // swap 2: swapping token 2 for token 3 - using fee used in quotation
-        // TransferHelper.safeApprove(token2, address(swapRouter), swap1_amountOut);
-
-        // uint256 swap2_amountOut =
-        //     swapRouter.exactInputSingle(
-        //         ISwapRouter.ExactInputSingleParams({
-        //             tokenIn: token2,
-        //             tokenOut: token3,
-        //             fee: decoded.poolFee2,
-        //             recipient: address(this),
-        //             deadline: block.timestamp + decoded.addToDeadline,
-        //             amountIn: swap1_amountOut,
-        //             amountOutMinimum: decoded.quote2,
-        //             sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
-        //         })
-        //     );
-
-        // emit LogSwap(decoded.quote2, swap2_amountOut);
-
-        // // swap 3: swapping token 3 for token 1 - using fee used in quotation
-        // TransferHelper.safeApprove(token3, address(swapRouter), swap2_amountOut);
-
-        uint256 swap3_amountOut = totalOwing + 1;
-            // swapRouter.exactInputSingle(
-            //     ISwapRouter.ExactInputSingleParams({
-            //         tokenIn: token3,
-            //         tokenOut: token1,
-            //         fee: decoded.poolFee3,
-            //         recipient: address(this),
-            //         deadline: block.timestamp + decoded.addToDeadline,
-            //         amountIn: swap2_amountOut,
-            //         amountOutMinimum: decoded.quote3,
-            //         sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
-            //     })
-            // );
-
-        emit LogSwap(decoded.quote3, swap3_amountOut);
-
-        // this calculation recognized that the fee is included for each swap
-        // - however, the cost for the whole transaction is not included in the calculation
-
-        // this minimum check must be met - it may save some gas
-        // - any profits even tiny will help offset the transaction cost, at the least 
-        require(swap3_amountOut > totalOwing, "Profit is less than total owing");
+        uint256 swap3_amountOut = swap1_amountOut;
 
         // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
         // if profitable, send profits to payer-->our wallet: decoded.payer
@@ -196,8 +144,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash(FlashParams memory params) external {
 
-        emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
-
         // token0 and token1 must be in correct place or else ot will throw exception because
         // PoolAddress.computeAddress function has require(key.token0 < key.token1)
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
@@ -205,8 +151,6 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             token1: params.token_1,
             fee: params.fee1
             });
-
-        emit LogInitFlash(params.token_0, params.token_1, params.token1, params.borrowedAmount);
 
         IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
 
