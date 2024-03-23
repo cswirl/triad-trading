@@ -19,12 +19,11 @@ TIER_10000 = 10000
 
 fee = TIER_10000
 
-network = uniswap_api.get_network("mainnet")
-
+keys = uniswap_helper.load_keys_from_file()
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
-
-_uniswap = Uniswap(network_config=network, provider=provider)
+_uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
 
 eth = Web3.to_checksum_address("0x0000000000000000000000000000000000000000")
 weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
@@ -42,6 +41,11 @@ t_ape = CryptoToken(ape, "APE", 18)
 
 usdc_decimals = 6
 weth_decimals = 18
+
+# new
+token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+token3 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
 
 
 def path_builder(fee):
@@ -93,15 +97,21 @@ class TestUniswapApi(unittest.TestCase):
         print(f"Swap 3 : Swapping {swap2_output} {t_ape.symbol} to {swap3_output} {t_usdc.symbol}")
 
     def test_quoter_single(self):
-        amount_in = 74
-        stable = t_usdt
+        """
+        token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+        token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+        token3 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
+        :return:
+        """
+        amount_in = 10
+        stable = token1
 
-        amount_out = self._test_quoter(t_ape, t_usdc, amount_in)
-        print(f"Quoter : Swapping {amount_in} {t_ape.symbol} for {amount_out} {stable.symbol}")
+        amount_out = self._test_quoter(token2, stable, amount_in)
+        print(f"Quoter : Swapping {amount_in} {token2.symbol} for {amount_out} {stable.symbol}")
 
         amount_in = amount_out or 100
-        amount_out = self._test_quoter(t_usdc, t_ape, amount_in)
-        print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {t_ape.symbol}")
+        amount_out = self._test_quoter(stable, token2, amount_in)
+        print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {token2.symbol}")
 
 
     def _test_quoter_multipool(self):
