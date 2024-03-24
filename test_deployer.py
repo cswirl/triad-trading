@@ -71,7 +71,7 @@ class TestDeployer(unittest.TestCase):
         # sepolia
 
 
-        swap1_amount = 1
+        swap1_amount = 10
 
         # the fee used in the quoter is the same
         fee1 = 3000

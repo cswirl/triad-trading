@@ -3,6 +3,9 @@ import os
 
 from web3 import Web3
 
+import uniswap
+
+
 def decimal_right_shift(val, decimals: int):
     return int(val * (10 ** decimals))
 
@@ -22,10 +25,12 @@ def _load_abi(name: str) -> str:
 #-----------------------------------------------------------------
 def load_keys_from_file():
 
-    #filename = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
+    #
+    package_path = os.path.dirname(uniswap.__file__)
     file_path = "vault/pkeys.json"
+    filename = os.path.join(package_path, file_path)
     try:
-        with open(file_path, 'r') as file:
+        with open(filename, 'r') as file:
             data = json.load(file)
             print(f"json data from {file_path} was loaded")
             return data
