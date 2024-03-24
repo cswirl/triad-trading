@@ -19,12 +19,11 @@ TIER_10000 = 10000
 
 fee = TIER_10000
 
-network = uniswap_api.get_network("mainnet")
-
+keys = uniswap_helper.load_keys_from_file()
+network = uniswap_api.get_network("sepolia")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
-
-_uniswap = Uniswap(network_config=network, provider=provider)
+_uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
 
 eth = Web3.to_checksum_address("0x0000000000000000000000000000000000000000")
 weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
@@ -33,7 +32,7 @@ usdc = Web3.to_checksum_address("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
 sushi = Web3.to_checksum_address("0x6B3595068778DD592e39A122f4f5a5cF09C90fE2")
 ape = Web3.to_checksum_address("0x4d224452801aced8b2f0aebe155379bb5d594381")
 
-CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
+CryptoToken = namedtuple("CryptoToken_Exp1", ["id", "symbol", "decimals"])
 
 t_weth = CryptoToken(weth, "WETH", 18)
 t_usdt = CryptoToken(usdt, "USDT", 6)
@@ -42,6 +41,11 @@ t_ape = CryptoToken(ape, "APE", 18)
 
 usdc_decimals = 6
 weth_decimals = 18
+
+# new
+token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+token3 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
 
 
 def path_builder(fee):
@@ -76,6 +80,10 @@ class TestUniswapApi(unittest.TestCase):
         pass
 
     def test_quoter_compare(self):
+        """
+        May only work in mainnet as it is using Quoter not QuoterV2
+
+        """
         print("============ QUOTER COMPARE ===============")
         multi_output_amount =  self._test_quoter_multipool()
         print(f"Multipool Output amount: {multi_output_amount}")
@@ -83,25 +91,31 @@ class TestUniswapApi(unittest.TestCase):
         # Three separate swaps
         seed_amount = 100
 
-        swap1_output = self._test_quoter(t_usdc, t_weth, seed_amount)
+        swap1_output = _uniswap.quote_price_input(t_usdc, t_weth, seed_amount)
         print(f"Swap 1 : Swapping {seed_amount} {t_usdc.symbol} to {swap1_output} {t_weth.symbol}")
         # swap 2
-        swap2_output = self._test_quoter(t_weth, t_ape, swap1_output)
+        swap2_output = _uniswap.quote_price_input(t_weth, t_ape, swap1_output)
         print(f"Swap 2 : Swapping {swap1_output} {t_weth.symbol} to {swap2_output} {t_ape.symbol}")
         # swap 3
-        swap3_output = self._test_quoter(t_ape, t_usdc, swap2_output)
+        swap3_output = _uniswap.quote_price_input(t_ape, t_usdc, swap2_output)
         print(f"Swap 3 : Swapping {swap2_output} {t_ape.symbol} to {swap3_output} {t_usdc.symbol}")
 
     def test_quoter_single(self):
-        amount_in = 74
-        stable = t_usdt
+        """
+        token1 = CryptoToken_Exp1(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+        token2 = CryptoToken_Exp1(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+        token3 = CryptoToken_Exp1(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
+        :return:
+        """
+        amount_in = 10
+        stable = token1
 
-        amount_out = self._test_quoter(t_ape, t_usdc, amount_in)
-        print(f"Quoter : Swapping {amount_in} {t_ape.symbol} for {amount_out} {stable.symbol}")
+        amount_out = _uniswap.quote_price_input(token2, stable, amount_in)
+        print(f"Quoter : Swapping {amount_in} {token2.symbol} for {amount_out} {stable.symbol}")
 
         amount_in = amount_out or 100
-        amount_out = self._test_quoter(t_usdc, t_ape, amount_in)
-        print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {t_ape.symbol}")
+        amount_out = _uniswap.quote_price_input(stable, token2, amount_in)
+        print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {token2.symbol}")
 
 
     def _test_quoter_multipool(self):
@@ -133,39 +147,6 @@ class TestUniswapApi(unittest.TestCase):
         except Exception as e:
             # Handle other general exceptions
             print(f"An error occurred: {e}")
-
-
-    def _test_quoter(self, token0, token1, qty, fee = 3000):
-        quoter = _uniswap.quoter
-
-        qty_to_dec = qty * (10**token0.decimals)
-        sqrtPriceLimitX96 = 0
-
-        try:
-            #print(w3.api)
-            #print(quoter.functions.factory().call())
-
-            # Call a function on the contract that might raise an error
-            price = quoter.functions.quoteExactInputSingle(
-                token0.id,
-                token1.id,
-                fee,
-                int(qty_to_dec),
-                sqrtPriceLimitX96
-            ).call()
-
-            print(f"quoted price from quoter: {price / 10**token1.decimals}")
-
-            return price / 10**token1.decimals
-
-        except ContractLogicError as e:
-            # Handle contract-specific logic errors
-            print(f"Contract logic error: {e} - data: {e.data}")
-
-        except Exception as e:
-            # Handle other general exceptions
-            print(f"An error occurred: {e}")
-
 
 
     def test_main(self):

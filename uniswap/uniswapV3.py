@@ -99,6 +99,12 @@ class Uniswap:
         # )
 
     def quote_price_input(self, token0, token1, qty, fee=3000):
+        if self.network_config["chainId"] == "11155111":
+            return self._sepolia_quote_price_input(token0, token1, qty, fee)
+        else:
+            return self._mainnet_quote_price_input(token0, token1, qty, fee)
+
+    def _mainnet_quote_price_input(self, token0, token1, qty, fee=3000):
         qty_to_dec = qty * (10 ** token0.decimals)
         sqrtPriceLimitX96 = 0
 
@@ -113,6 +119,41 @@ class Uniswap:
             ).call()
 
             return price / 10 ** token1.decimals
+
+        except ContractLogicError as e:
+            # Handle contract-specific logic errors
+            print(f"Contract logic error: {e} - data: {e.data}")
+
+        except Exception as e:
+            # Handle other general exceptions
+            print(f"An error occurred: {e}")
+
+    def _sepolia_quote_price_input(self, token0, token1, qty, fee=3000):
+        qty_to_dec = qty * (10 ** token0.decimals)
+        sqrtPriceLimitX96 = 0
+
+        params = {
+            "tokenIn": token0.id,
+            "tokenOut": token1.id,
+            "fee": fee,
+            "amountIn": int(qty_to_dec),
+            "sqrtPriceLimitX96": sqrtPriceLimitX96
+        }
+
+        try:
+            # print(w3.api)
+            # print(quoter.functions.factory().call())
+
+            # Call a function on the contract that might raise an error
+            # https://sepolia.etherscan.io/address/0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3#code
+            # look for quoteExactInputSingle
+            price, _, _, _ = self.quoter.functions.quoteExactInputSingle(params).call()
+
+            amount_out = price / 10 ** token1.decimals
+
+            print(f"quoted price from quoter: {amount_out}")
+
+            return amount_out
 
         except ContractLogicError as e:
             # Handle contract-specific logic errors

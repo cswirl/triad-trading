@@ -296,7 +296,7 @@ def execute_flash(flashParams_dict: dict):
 def load_keys_from_file():
 
     #filename = os.path.join(KEYS_FOLDER_PATH, 'pkeys.json')
-    file_path = "vault/pkeys.json"
+    file_path = "uniswap/vault/pkeys.json"
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
@@ -307,8 +307,10 @@ def load_keys_from_file():
     except json.JSONDecodeError:
         print(f"error decoding JSON in file '{file_path}'.")
 
-keys = load_keys_from_file()
-network = uniswap_api.get_network("sepolia")
+network = "sepolia"
+keys = uniswap_helper.load_keys_from_file()
+network = uniswap_api.get_network(network)
+print(f"running on {network} network")
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
