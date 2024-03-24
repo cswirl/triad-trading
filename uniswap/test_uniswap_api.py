@@ -32,7 +32,7 @@ usdc = Web3.to_checksum_address("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
 sushi = Web3.to_checksum_address("0x6B3595068778DD592e39A122f4f5a5cF09C90fE2")
 ape = Web3.to_checksum_address("0x4d224452801aced8b2f0aebe155379bb5d594381")
 
-CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
+CryptoToken = namedtuple("CryptoToken_Exp1", ["id", "symbol", "decimals"])
 
 t_weth = CryptoToken(weth, "WETH", 18)
 t_usdt = CryptoToken(usdt, "USDT", 6)
@@ -102,9 +102,9 @@ class TestUniswapApi(unittest.TestCase):
 
     def test_quoter_single(self):
         """
-        token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
-        token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
-        token3 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
+        token1 = CryptoToken_Exp1(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+        token2 = CryptoToken_Exp1(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+        token3 = CryptoToken_Exp1(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
         :return:
         """
         amount_in = 10

@@ -15,11 +15,17 @@ weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 usdt = Web3.to_checksum_address("0xdac17f958d2ee523a2206206994597c13d831ec7")
 rlb = Web3.to_checksum_address("0x046EeE2cc3188071C02BfC1745A6b17c656e3f3d")
 
-CryptoToken = namedtuple("CryptoToken", ["hex_address", "id", "symbol", "decimals"])
+CryptoToken_Exp1 = namedtuple("CryptoToken_Exp1", ["hex_address", "id", "symbol", "decimals"])
 
-t_weth = CryptoToken(Web3.to_bytes(hexstr=weth), weth, "WETH", 18)
-t_usdt = CryptoToken(Web3.to_bytes(hexstr=usdt), usdt, "USDT", 6)
-t_rlb = CryptoToken(Web3.to_bytes(hexstr=rlb), rlb, "RLB", 18)
+t_weth = CryptoToken_Exp1(Web3.to_bytes(hexstr=weth), weth, "WETH", 18)
+t_usdt = CryptoToken_Exp1(Web3.to_bytes(hexstr=usdt), usdt, "USDT", 6)
+t_rlb = CryptoToken_Exp1(Web3.to_bytes(hexstr=rlb), rlb, "RLB", 18)
+
+# new
+CryptoToken = namedtuple("CryptoToken_Exp1", ["id", "symbol", "decimals"])
+usdc = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+wds = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+yt = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
 
 class TestDeployer(unittest.TestCase):
 
@@ -55,45 +61,28 @@ class TestDeployer(unittest.TestCase):
         "Test Fund: 100 USDT ---approx. 100 USD",
         "Changing state: 'Hunting Profit'",
         "================================================================================Inquiring price",
-        "Quote 1 : 100 USDT to 0.03978381769984377 WETH",
-        "Quote 2 : 0.03978381769984377 WETH to 777.5967111439336 RLB",
-        "Quote 3 : 777.5967111439336 RLB to 100.196489 USDT",
+        "Quote 1 : USDC to WDS",
+        "Quote 2 : WDS to YT",
+        "Quote 3 : YT to USDC",
         "--------------------",
-        "Min. rate : 0",
-        "PnL : 0.1964889999999997",
-        "PnL % : 0.1964889999999997",
 
-        :return:
         """
 
         # sepolia
 
-        CryptoToken = namedtuple("CryptoToken", ["id", "symbol", "decimals"])
 
-        # WETH_USDC pair : pool address 0x9D6b5ca80E3Cce67bcf829653ac32dE119F5E840
-        USDC = CryptoToken(Web3.to_checksum_address("0x5Afa26c6218b109199046C9475E313cb305404b6"), "USDC", 18)
-        WETH = CryptoToken(Web3.to_checksum_address("0x54EF5330659a178483aBc6d6567f6E571136E019"), "WETH", 18)
-        TRIAD = CryptoToken(Web3.to_checksum_address("0x652F7847906C57FdAceF58477cA5149B90E655e1"), "TRIAD", 18)
-
-        # token 0
-        eETH = CryptoToken(Web3.to_checksum_address("0x0305ea0a4b43a12e3d130448e9b4711932231e83"), "WETH", 18)
-        # token 1
-        WETH9 = CryptoToken(Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14"), "WETH", 18)
-
-
-        swap1_amount = 0.005
-        swap1_amount1 = 0 #0.03978381769984377
+        swap1_amount = 1
 
         # the fee used in the quoter is the same
-        fee1 = 10000 # 3000
+        fee1 = 3000
         fee2 = 3000
         fee3 = 3000
         addToDeadline = 200 # seconds
 
         # this is the order of the pathway triplet
-        one = WETH9
-        two = eETH
-        three = TRIAD
+        one = usdc
+        two = wds
+        three = yt
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
         # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
         zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
