@@ -145,6 +145,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     struct FlashParams {
         address token_0;
         address token_1;
+        uint24 fee0;
         uint256 amount0;
         uint256 amount1;
         uint256 borrowedAmount;
@@ -189,7 +190,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
             token0: params.token_0,
             token1: params.token_1,
-            fee: params.fee1
+            fee: params.fee0
             });
 
         IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));

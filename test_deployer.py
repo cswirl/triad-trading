@@ -27,6 +27,10 @@ usdc = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d5
 wds = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
 yt = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
 
+# flash loan contract pair USDC / WTRIAD
+wtriad = CryptoToken(Web3.to_checksum_address("0x1CFBddc8D66328ca250EC720c9f62DB08aa4BC6f"), "WTRIAD", 18)
+
+
 class TestDeployer(unittest.TestCase):
 
     def test_deploy_1(self):
@@ -63,6 +67,8 @@ class TestDeployer(unittest.TestCase):
         "================================================================================Inquiring price",
         "Quote 1 : USDC to WDS",
         "Quote 2 : WDS to YT",
+        "Quote 3 : YT to WDS",
+
         "Quote 3 : YT to USDC",
         "--------------------",
 
@@ -107,8 +113,9 @@ class TestDeployer(unittest.TestCase):
         # amount_1 = 0 if zeroForOne else swap1_amount1
 
         FlashParams = {
-            "token_0": token0.id,
-            "token_1": token1.id,
+            "token_0": wtriad.id,
+            "token_1": usdc.id,
+            "fee0": 3000,
             "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
             "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
             "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
