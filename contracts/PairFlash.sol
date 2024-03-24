@@ -19,6 +19,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     using LowGasSafeMath for int256;
 
     event LogCallBackInitParams(address token1, address token2, address token3, uint256 borrowedAmount);
+    event Result(uint256 swap3_amountOut, uint256 totalOwing);
 
     ISwapRouter public immutable swapRouter;
 
@@ -119,12 +120,13 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         // - however, the cost for the whole transaction is not included in the calculation
 
         // this minimum check must be met - it may save some gas
-        // - any profits even tiny will help offset the transaction cost, at the least 
-        require(swap3_amountOut > totalOwing, "Profit is less than total owing");
+        // - any profits even tiny will help offset the transaction cost, at the least
+        emit Result(swap3_amountOut, totalOwing);
+        //require(swap3_amountOut > totalOwing, "Profit is less than total owing");
 
         // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
         // if profitable, send profits to payer-->our wallet: decoded.payer
-        
+
         // pay back the pool: pay both to make sure we don't miss any OR ELSE whole transaction will fail
         TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
         TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
