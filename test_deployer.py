@@ -91,10 +91,10 @@ class TestDeployer(unittest.TestCase):
         three = yt
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
         # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
-        zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
+        zeroForOne = Web3.to_int(hexstr=usdc.id) < Web3.to_int(hexstr=wtriad.id)
         if zeroForOne:
             token0 = one
-            amount_0 = int(swap1_amount * (10 ** token0.decimals))
+            amount_0 = swap1_amount # int(swap1_amount * (10 ** token0.decimals))
             borrowed_amount = amount_0
 
             token1 = two
@@ -104,7 +104,7 @@ class TestDeployer(unittest.TestCase):
             amount_0 = 0    #int(0.03978381769984377 * (10 ** two.decimals)) #0
 
             token1 = one
-            amount_1 =  int(swap1_amount * (10 ** token1.decimals))
+            amount_1 =  swap1_amount #int(swap1_amount * (10 ** token1.decimals))
             borrowed_amount = amount_1
 
         # token0 = one if zeroForOne else two
