@@ -18,7 +18,12 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
 
+<<<<<<< HEAD
     event Log(uint256 indexed borrowed0, uint256 amount0, uint256 fee0, uint256 amount1, uint256 fee1);
+=======
+    event LogCallBackInitParams(address token1, address token2, address token3, uint256 borrowedAmount);
+    event Result(uint256 swap3_amountOut, uint256 totalOwing);
+>>>>>>> sol_pair_flash
 
     ISwapRouter public immutable swapRouter;
 
@@ -43,6 +48,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
         CallbackValidation.verifyCallback(factory, decoded.poolKey);
 
+<<<<<<< HEAD
 
         // When this callback is invoked, it means this contract was already funded using pool.flash 
         // in the function initFlash and stored in FlashCallbackData.borrowedAmount 
@@ -149,14 +155,113 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             pay(token1, address(this), decoded.payer, profit0);
         }
 
+=======
+        // When this callback is invoked, it means this contract was already funded using pool.flash
+        // in the function initFlash and stored in FlashCallbackData.borrowedAmount
+        // and that value can be accessed here via the decoded.borrowedAmount
+
+        uint256 amount0Owed = LowGasSafeMath.add(decoded.amount0, fee0);
+        uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
+
+        // Calculate the amount to repay at the end
+        uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
+
+        // get pathway triplet token addresses
+        address token1 = decoded.token1;
+        address token2 = decoded.token2;
+        address token3 = decoded.token3;
+
+        emit LogCallBackInitParams(token1, token2, token3, decoded.borrowedAmount);
+
+        // If any one of the three swaps fails, the whole transaction will fail because
+        //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
+        //  - require(amountOut >= params.amountOutMinimum, 'Too little received');
+
+        // swap 1: swapping token1 for token2 in pool - use fee0 from callback argument
+        TransferHelper.safeApprove(token1, address(swapRouter), decoded.borrowedAmount);
+
+        uint256 swap1_amountOut =
+            swapRouter.exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token1,
+                    tokenOut: token2,
+                    fee: decoded.poolFee1,
+                    recipient: address(this),
+                    deadline: block.timestamp + decoded.addToDeadline,
+                    amountIn: decoded.borrowedAmount,
+                    amountOutMinimum: decoded.quote1,
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+                })
+            );
+
+        // swap 2: swapping token 2 for token 3 - using fee used in quotation
+        TransferHelper.safeApprove(token2, address(swapRouter), swap1_amountOut);
+
+        uint256 swap2_amountOut =
+            swapRouter.exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token2,
+                    tokenOut: token3,
+                    fee: decoded.poolFee2,
+                    recipient: address(this),
+                    deadline: block.timestamp + decoded.addToDeadline,
+                    amountIn: swap1_amountOut,
+                    amountOutMinimum: decoded.quote2,
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+                })
+            );
+
+        // swap 3: swapping token 3 for token 1 - using fee used in quotation
+        TransferHelper.safeApprove(token3, address(swapRouter), swap2_amountOut);
+
+        uint256 swap3_amountOut =
+            swapRouter.exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token3,
+                    tokenOut: token1,
+                    fee: decoded.poolFee3,
+                    recipient: address(this),
+                    deadline: block.timestamp + decoded.addToDeadline,
+                    amountIn: swap2_amountOut,
+                    amountOutMinimum: decoded.quote3,
+                    sqrtPriceLimitX96: decoded.sqrtPriceLimitX96
+                })
+            );
+
+        // this calculation recognized that the fee is included for each swap
+        // - however, the cost for the whole transaction is not included in the calculation
+
+        // this minimum check must be met - it may save some gas
+        // - any profits even tiny will help offset the transaction cost, at the least
+        emit Result(swap3_amountOut, totalOwing);
+        //require(swap3_amountOut > totalOwing, "Profit is less than total owing");
+
+        // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
+        // if profitable, send profits to payer-->our wallet: decoded.payer
+
+        // pay back the pool: pay both to make sure we don't miss any OR ELSE whole transaction will fail
+        TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
+        TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
+        // pool address-->msg.sender
+        if (amount0Owed > 0) pay(decoded.poolKey.token0, address(this), msg.sender, amount0Owed);
+        if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
+
+        // pay our wallet-->decoded.payer
+        uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, decoded.borrowedAmount);
+        TransferHelper.safeApprove(token1, address(this), profit0);
+        pay(token1, address(this), decoded.payer, profit0);
+
+>>>>>>> sol_pair_flash
     }
 
-    //fee1 is the fee of the pool from the initial borrow
-    //fee2 is the fee of the first pool to arb from
-    //fee3 is the fee of the second pool to arb from
+    //fee1, fee2, fee3 are the ones we used in the Quoter - from python program
     struct FlashParams {
         address token_0;
         address token_1;
+<<<<<<< HEAD
+=======
+        uint24 fee0;
+>>>>>>> sol_pair_flash
         uint256 amount0;
         uint256 amount1;
         uint256 borrowedAmount;
@@ -169,9 +274,13 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 fee1;
         uint24 fee2;
         uint24 fee3;
+<<<<<<< HEAD
+=======
+        uint24 sqrtPriceLimitX96;
+>>>>>>> sol_pair_flash
         uint24 addToDeadline;
     }
-    // fee2 and fee3 are the two other fees associated with the two other pools of token0 and token1
+    //
     struct FlashCallbackData {
         uint256 amount0;
         uint256 amount1;
@@ -187,12 +296,17 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 poolFee1;
         uint24 poolFee2;
         uint24 poolFee3;
+<<<<<<< HEAD
+=======
+        uint24 sqrtPriceLimitX96;
+>>>>>>> sol_pair_flash
         uint24 addToDeadline;
     }
 
     /// @param params The parameters necessary for flash and the callback, passed in as FlashParams
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash(FlashParams memory params) external {
+<<<<<<< HEAD
         // token0 and token1 must be in correct place or else ot will throw exception because
         // PoolAddress.computeAddress function has require(key.token0 < key.token1)
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
@@ -202,6 +316,20 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
             });
         IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
         // recipient of borrowed amounts - recipient of flash should be THIS contract
+=======
+
+        // token0 and token1 must be in correct place or else ot will throw exception because
+        // PoolAddress.computeAddress function has require(key.token0 < key.token1)
+        PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
+            token0: params.token_0,
+            token1: params.token_1,
+            fee: params.fee0
+            });
+
+        IUniswapV3Pool pool = IUniswapV3Pool(PoolAddress.computeAddress(factory, poolKey));
+
+        // recipient of borrowed amounts - recipient of flash should be THIS contract address
+>>>>>>> sol_pair_flash
         // amount of token0 requested to borrow
         // amount of token1 requested to borrow
         //  - need amount 0 and amount1 in callback to pay back pool
@@ -225,6 +353,10 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     poolFee1: params.fee1,
                     poolFee2: params.fee2,
                     poolFee3: params.fee3,
+<<<<<<< HEAD
+=======
+                    sqrtPriceLimitX96: params.sqrtPriceLimitX96,
+>>>>>>> sol_pair_flash
                     addToDeadline: params.addToDeadline
                 })
             )

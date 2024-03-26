@@ -15,11 +15,21 @@ weth = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 usdt = Web3.to_checksum_address("0xdac17f958d2ee523a2206206994597c13d831ec7")
 rlb = Web3.to_checksum_address("0x046EeE2cc3188071C02BfC1745A6b17c656e3f3d")
 
-CryptoToken = namedtuple("CryptoToken", ["hex_address", "id", "symbol", "decimals"])
+CryptoToken_Exp1 = namedtuple("CryptoToken_Exp1", ["hex_address", "id", "symbol", "decimals"])
 
-t_weth = CryptoToken(Web3.to_bytes(hexstr=weth), weth, "WETH", 18)
-t_usdt = CryptoToken(Web3.to_bytes(hexstr=usdt), usdt, "USDT", 6)
-t_rlb = CryptoToken(Web3.to_bytes(hexstr=rlb), rlb, "RLB", 18)
+t_weth = CryptoToken_Exp1(Web3.to_bytes(hexstr=weth), weth, "WETH", 18)
+t_usdt = CryptoToken_Exp1(Web3.to_bytes(hexstr=usdt), usdt, "USDT", 6)
+t_rlb = CryptoToken_Exp1(Web3.to_bytes(hexstr=rlb), rlb, "RLB", 18)
+
+# new
+CryptoToken = namedtuple("CryptoToken_Exp1", ["id", "symbol", "decimals"])
+usdc = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+wds = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+yt = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
+
+# flash loan contract pair USDC / WTRIAD
+wtriad = CryptoToken(Web3.to_checksum_address("0x1CFBddc8D66328ca250EC720c9f62DB08aa4BC6f"), "WTRIAD", 18)
+
 
 class TestDeployer(unittest.TestCase):
 
@@ -55,18 +65,19 @@ class TestDeployer(unittest.TestCase):
         "Test Fund: 100 USDT ---approx. 100 USD",
         "Changing state: 'Hunting Profit'",
         "================================================================================Inquiring price",
-        "Quote 1 : 100 USDT to 0.03978381769984377 WETH",
-        "Quote 2 : 0.03978381769984377 WETH to 777.5967111439336 RLB",
-        "Quote 3 : 777.5967111439336 RLB to 100.196489 USDT",
-        "--------------------",
-        "Min. rate : 0",
-        "PnL : 0.1964889999999997",
-        "PnL % : 0.1964889999999997",
+        "Quote 1 : USDC to WDS",
+        "Quote 2 : WDS to YT",
+        "Quote 3 : YT to WDS",
 
-        :return:
+        "Quote 3 : YT to USDC",
+        "--------------------",
+
         """
-        swap1_amount = 100
-        swap1_amount1 = 0 #0.03978381769984377
+
+        # sepolia
+
+
+        swap1_amount = 10
 
         # the fee used in the quoter is the same
         fee1 = 3000
@@ -75,15 +86,15 @@ class TestDeployer(unittest.TestCase):
         addToDeadline = 200 # seconds
 
         # this is the order of the pathway triplet
-        one = t_usdt
-        two = t_weth
-        three = t_rlb
+        one = usdc
+        two = wds
+        three = yt
         # only the first pair is important to be in correct order for the initFlash to identify the pool address
-        # using zeroForOne worked on usdt and weth
-        zeroForOne = one.id < two.id
+        # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
+        zeroForOne = Web3.to_int(hexstr=usdc.id) < Web3.to_int(hexstr=wtriad.id)
         if zeroForOne:
             token0 = one
-            amount_0 = int(swap1_amount * (10 ** token0.decimals))
+            amount_0 = swap1_amount # int(swap1_amount * (10 ** token0.decimals))
             borrowed_amount = amount_0
 
             token1 = two
@@ -93,7 +104,7 @@ class TestDeployer(unittest.TestCase):
             amount_0 = 0    #int(0.03978381769984377 * (10 ** two.decimals)) #0
 
             token1 = one
-            amount_1 =  int(swap1_amount * (10 ** token1.decimals))
+            amount_1 =  swap1_amount #int(swap1_amount * (10 ** token1.decimals))
             borrowed_amount = amount_1
 
         # token0 = one if zeroForOne else two
@@ -102,20 +113,22 @@ class TestDeployer(unittest.TestCase):
         # amount_1 = 0 if zeroForOne else swap1_amount1
 
         FlashParams = {
-            "token_0": token0.id,
-            "token_1": token1.id,
+            "token_0": wtriad.id,
+            "token_1": usdc.id,
+            "fee0": 3000,
             "amount0": amount_0,  # amount_0 and amount_1 is where the seed amount is - in human or in blockchain?
             "amount1": amount_1,  # not sure if zero will work -other token in a pool where flash is invoked
             "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
             "token1": one.id,  # this is the token we need borrowing
             "token2": two.id,
             "token3": three.id,
-            "quote1": int(0.03978381769984377 * (10 ** two.decimals)),
-            "quote2": int(777.5967111439336 * (10 ** three.decimals)),
-            "quote3": int(100.196489 * (10 ** one.decimals)),
+            "quote1": 0,
+            "quote2": 0,
+            "quote3": 0,
             "fee1": fee1,
             "fee2": fee2,
             "fee3": fee3,
+            "sqrtPriceLimitX96": 0,  # we do not understand this as of now
             "addToDeadline": addToDeadline
         }
 
@@ -150,7 +163,7 @@ class TestDeployer(unittest.TestCase):
         tx_build = flash.functions.initFlash(params).build_transaction({
             "chainId": chain_id,
             "value": 0,
-            "gas": gas,
+            "gas": 8000000,
             "gasPrice": gas_price,
             "nonce": nonce
         })
@@ -160,11 +173,13 @@ class TestDeployer(unittest.TestCase):
 
         # Send transaction
         sent_tx = tu.w3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        print(sent_tx)
+        print(tu.w3.to_hex(sent_tx))
 
-        #tx_hash = greeter.functions.setGreeting('Nihao').transact()
+        tx_receipt = tu.w3.eth.wait_for_transaction_receipt(sent_tx, timeout=params["addToDeadline"])
+        print(tx_receipt)
+        pass
 
-        #tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
 
 
 

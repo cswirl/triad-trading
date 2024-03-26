@@ -23,8 +23,8 @@ class TradingPair:
         init
         :param id (str): the pools contract id
         :param pair_symbol (str): trading pair symbol. Ex. 'BTC_USDC'
-        :param token0 (CryptoToken): token0 token
-        :param token1 (CryptoToken): token1 token
+        :param token0 (CryptoToken_Exp1): token0 token
+        :param token1 (CryptoToken_Exp1): token1 token
         """
         self.id = id
         self.tvl_eth = tvl_eth

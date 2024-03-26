@@ -1,13 +1,15 @@
 import asyncio
+import random
 import time
 import uuid
 import traceback
 from datetime import datetime
 from enum import Enum
 
-from web3.exceptions import ContractLogicError
+from web3.exceptions import ContractLogicError, TimeExhausted
 
 import global_triad as gt
+import utils as u
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -27,7 +29,12 @@ class TraderState(Enum):    # using a text mapping is available
 
 
 class Trader:
-    def __init__(self, pathway_triplet, func_depth_rate, calculate_seed_fund = None):
+    def __init__(self,
+                 pathway_triplet,
+                 func_depth_rate,
+                 func_excute_flashloan,
+                 calculate_seed_fund = None
+                 ):
         self.id = uuid.uuid4()
         self.pathway_triplet = pathway_triplet   # The three tokens in a Triad in correct order. Example: USDT-WETH-APE
         self.pathway_root_symbol = pathway_triplet.split(PATH_TRIPLET_DELIMITER)[0]
@@ -36,8 +43,7 @@ class Trader:
         self.test_fund = amount_out
         self.test_fund_usd = usd_amount_in
 
-        self.internal_state = TraderState.ACTIVE
-        self.internal_state_reason = "<not set>"
+        self.internal_state = TraderState.ACTIVE, "active"
         self.trade1_flag = 0
         self.trade2_flag = 0
         self.trade3_flag = 0
@@ -48,6 +54,7 @@ class Trader:
         self.hunt_profit_flag = True
 
         self.get_depth_rate = func_depth_rate
+        self.excute_flashloan = func_excute_flashloan
 
         self.logger(f"Greetings from {str(self)}")
         self.logger(f"Active Traders: {gt.g_total_active_traders}  (inaccurate: testing for sleep calculation)")
@@ -61,8 +68,7 @@ class Trader:
             if continue_trading:
                 await asyncio.sleep(POST_TRADE_EXECUTION_SLEEP)
 
-        self.internal_state = TraderState.DORMANT
-        self.internal_state_reason = "FLAGGED TO DISCONTINUE"
+        self.internal_state = TraderState.DORMANT, "FLAGGED TO DISCONTINUE"
         self.logger(f"Changing State to DORMANT : {self}")
         self.save_logs()
 
@@ -77,8 +83,10 @@ class Trader:
 
         try:
             # awaiting hunt_profit during sleep allows for other Trader instance to do their jobs concurrently
-            await self.hunt_profit()
+            quotation_dict = await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
+            if quotation_dict:
+                u.play_sound()
 
             # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
             # - and then return False after enough attempts
@@ -89,19 +97,12 @@ class Trader:
             if response is not FundingResponse.APPROVED:
                 return CONTINUE_OUTER_LOOP
 
-            self.internal_state = TraderState.TRADING
+            # execute flash loan - initFlash
+            success, tx_hash, receipt = await self.flashloan_execute(
+                triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
+            )
 
-            # Set a timeout of in seconds for async function
-            trade1_result = await asyncio.wait_for(self.execute_trade_1(), timeout=TRADE_TIMEOUT)
-
-            # await self.hunt_profit(trade1_result)
-            trade2_result = await asyncio.wait_for(self.execute_trade_2(), timeout=TRADE_TIMEOUT)
-
-            # await self.hunt_profit(trade1_result, trade2_result)
-            amount_out_3 = await asyncio.wait_for(self.execute_trade_3(), timeout=TRADE_TIMEOUT)
-
-            async with gt.g_lock:
-                gt.g_trade_transaction_counter += 1
+            amount_out_3 = quotation_dict["quote3"]
 
             # calculate pnl and pnl percentage
             profit_loss = seedFund and amount_out_3 - seedFund
@@ -117,12 +118,17 @@ class Trader:
 
             result_dict = {
                 "id": str(self),
+                "txHash": tx_hash or "<not set>",
+                "status": success,
                 "pnl": profit_loss,
                 "pnlPerc": profit_loss_perc,
-                "trade_logs": self.lifespan_logs
+                "trade_logs": self.lifespan_logs,
+                "receipt": receipt and str(receipt) or "<not set>"
             }
 
             self.save_result_json(result_dict)
+
+            self.internal_state = TraderState.IDLE, "Trade executed"
 
         except asyncio.TimeoutError:
             self.logger(f"Incomplete trade - Time-Out : elapsed in {time.perf_counter() - start:0.2f} seconds")
@@ -154,21 +160,20 @@ class Trader:
 
     async def hunt_profit(self, amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
         self.logger("Changing state: 'Hunting Profit'")
-        self.internal_state = TraderState.HUNTING
+        self.internal_state = TraderState.HUNTING, "Hunting Profit"
         while True:
+            sleep_time = calculate_sleep_time()  * random.uniform(0.01, 1)
+            self.logger(f"sleep time {sleep_time}")
+            await asyncio.sleep(sleep_time)
 
             if self.hunt_profit_flag == False:
                 continue
 
-            good_depth = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
+            good_depth, quotation_dict = self.inquire_depth(self.get_depth_rate, amount_out_1, amount_out_2, amount_out_3)
 
             if good_depth:
                 self.logger("Changing State: 'Trading'")
-                break
-
-            sleep_time = calculate_sleep_time()
-            self.logger(f"sleep time {sleep_time}")
-            await asyncio.sleep(sleep_time)
+                return quotation_dict
 
 
     def inquire_depth(self, func_depth_rate,amount_out_1 = 0, amount_out_2 = 0, amount_out_3 = 0):
@@ -176,56 +181,75 @@ class Trader:
         self.logger(indent_1 + "Inquiring price")
 
         token1, token2, token3 = self.pathway_triplet.split(PATH_TRIPLET_DELIMITER)
+        fee1 = fee2 = fee3 = GAS_FEE
 
         test_amount = self.test_fund
 
         if amount_out_1 == 0:
-            amount_out_1 = func_depth_rate(token1,token2, test_amount)
-            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2}")
+            amount_out_1, fee1 = func_depth_rate(token1,token2, test_amount)
+            self.logger(f"Quote 1 : {test_amount} {token1} to {amount_out_1} {token2} --- fee tier: {fee1}")
 
         if amount_out_2 == 0:
-            amount_out_2 = func_depth_rate(token2, token3, amount_out_1)
-            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3}")
+            amount_out_2, fee2 = func_depth_rate(token2, token3, amount_out_1)
+            self.logger(f"Quote 2 : {amount_out_1} {token2} to {amount_out_2} {token3} --- fee tier: {fee2}")
 
         if amount_out_3 == 0:
-            amount_out_3 = func_depth_rate(token3, token1, amount_out_2)
-            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1}")
-
+            amount_out_3, fee3 = func_depth_rate(token3, token1, amount_out_2)
+            self.logger(f"Quote 3 : {amount_out_2} {token3} to {amount_out_3} {token1} --- fee tier: {fee3}")
 
         # calculate pnl and pnl percentage
         profit_loss = test_amount and amount_out_3 - test_amount
         profit_loss_perc = test_amount and profit_loss / float(test_amount) * 100
 
+        loan_fee = test_amount * fee1/1000000
+        profit_threshold = loan_fee + TRANSACTION_FEE + PROFIT_MINIMUM
+
         self.logger("--------------------")
-        self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
+        #self.logger(f"Min. rate : {DEPTH_MIN_RATE}")
         self.logger(f"PnL : {profit_loss}")
         self.logger(f"PnL % : {profit_loss_perc}")
+        self.logger("-------------")
+        self.logger(f"PnL Threshold : {profit_threshold}")
+        self.logger(f"Loan fee : {loan_fee}")
+        self.logger(f"Tx fee : {TRANSACTION_FEE}")
+        self.logger(f"Min. Profit Target : {PROFIT_MINIMUM}")
+        self.logger("-------------")
+        self.logger(f"Real Profit : {profit_loss - profit_threshold} <---(PnL minus PnL Threshold)")
         self.logger("--------------------")
 
         self.save_logs()
 
-        if profit_loss_perc >= DEPTH_MIN_RATE:
+        if profit_loss >= profit_threshold:
             self.logger(indent_1 + "Profit Found")
             self.save_logs()
-            return True
 
-        return False
+            quotation_dict = {
+                "pathwayTripletSymbols": self.pathway_triplet,
+                "seedAmount": test_amount,
+                "quote1": amount_out_1,
+                "quote2": amount_out_2,
+                "quote3": amount_out_3,
+                "fee1": fee1,
+                "fee2": fee2,
+                "fee3": fee3
+            }
+            return (True, quotation_dict)
+
+        return (False, None)
 
     async def ask_for_funding(self):
         self.logger(indent_1 + " asking for funding")
 
         async with gt.g_lock:
             # max transaction count reached
-            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
-                self.internal_state = TraderState.IDLE
-                self.internal_state_reason = "MAX_TRADING_TRANSACTIONS_EXCEEDED"
+            if gt.g_total_trades_executed >= MAX_TRADING_TRANSACTIONS:
+                self.internal_state = TraderState.IDLE, "MAX_TRADING_TRANSACTIONS_EXCEEDED"
                 self.logger(f"MAX_TRADING_TRANSACTIONS_EXCEEDED")
                 self.logger(f"sleep time : {MAX_TRADING_TRANSACTIONS_SLEEP}")
                 await asyncio.sleep(MAX_TRADING_TRANSACTIONS_SLEEP)
                 #
                 # upon wake-up resume state to active
-                self.internal_state = TraderState.ACTIVE
-                self.internal_state_reason = None
+                self.internal_state = TraderState.ACTIVE, "active"
                 self.logger(f"Waking-up - Changing State to Active")
                 funding_response = FundingResponse.MAX_TRADING_TRANSACTIONS_EXCEEDED
                 return funding_response, None, None
@@ -235,11 +259,14 @@ class Trader:
             # - since transaction result is not known immediately
             # For now, after reaching the MAX_TRADING_TRANSACTIONS, the program should terminate
             if gt.g_consecutive_trade_failure >= CONSECUTIVE_FAILED_TRADE_THRESHOLD:
-                self.internal_state = TraderState.IDLE
-                self.internal_state_reason = "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
+                self.internal_state = TraderState.IDLE, "CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED"
                 self.logger(f"CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED")
                 self.logger(f"sleep time : {CONSECUTIVE_FAILED_TRADE_SLEEP}")
                 await asyncio.sleep(CONSECUTIVE_FAILED_TRADE_SLEEP)
+                #
+                # upon wake-up resume state to active
+                self.internal_state = TraderState.ACTIVE, "active"
+                self.logger(f"Waking-up - Changing State to Active")
                 funding_response = FundingResponse.CONSECUTIVE_FAILED_TRADE_THRESHOLD_EXCEEDED
                 return funding_response, None, None
 
@@ -261,6 +288,28 @@ class Trader:
 
         return response, fund_in_usd, fund
 
+    async def flashloan_execute(self,flashParams_dict):
+        async with gt.g_lock:
+            gt.g_incomplete_trade_counter += 1
+            gt.g_total_trades_executed += 1
+
+        self.internal_state = TraderState.TRADING, "TRADING"
+        self.logger(indent_1 + "executing flash loan")
+        start = time.perf_counter()
+
+        success, tx_hash, receipt = self.excute_flashloan(flashParams_dict)
+
+        async with gt.g_lock:
+            gt.g_incomplete_trade_counter -= 1
+            if success:
+                gt.g_consecutive_trade_failure = 0
+            else:
+                gt.g_consecutive_trade_failure += 1
+
+        self.logger(f"flash loan completed : {tx_hash} elapsed in {time.perf_counter() - start:0.2f} seconds")
+
+        return success, tx_hash, receipt
+
 
     async def execute_trade_1(self):
         start = time.perf_counter()
@@ -276,7 +325,6 @@ class Trader:
         self.logger(f"Trade-1 completed : elapsed in {time.perf_counter() - start:0.2f} seconds")
 
         return 1000
-
 
 
     async def execute_trade_2(self):
@@ -345,60 +393,67 @@ class Trader:
 
 
 async def trader_monitor(traders_list:[Trader], counter = 0):
-    msg = []
-    active_list_log = []
-    active_list_msg = []
-    dormant_list_msg = []
-    idle_list = []
-    idle_list_msg = []
 
     while len(traders_list) > 0:
         _now = datetime.now()  # for utc, use datetime.now(timezone.utc) - import timezone
         initial_active_traders = len(traders_list)
-
-        headings = []
-        headings.append(f"Initial Active Traders: {initial_active_traders}")
-        headings.append(f"Numbers Trades Executed: {gt.g_trade_transaction_counter}")
-        headings.append(f"timestamp: {_now}")
-        headings.append(f"refresh every: {TRADER_MONITOR_SLEEP} seconds")
+        msg = []
+        active_list_log = []
+        active_list_msg = []
+        trading_list_msg = []
+        dormant_list_msg = []
+        hunting_list_msg = []
+        idle_list = []
+        idle_list_msg = []
 
         # below needs to be sliced-out when being extended by msg list below
         for trader in traders_list:
-            if trader.internal_state == TraderState.DORMANT:
-                dormant_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
-            elif trader.internal_state == TraderState.ACTIVE or trader.internal_state == TraderState.HUNTING:
-                active_list_msg.append(f"status: {trader.internal_state} - {str(trader)}")
-            elif trader.internal_state == TraderState.IDLE:
-                idle_list_msg.append(f"status: {trader.internal_state} - {str(trader)} - {trader.internal_state_reason}")
+            if trader.internal_state[0] == TraderState.DORMANT:
+                dormant_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)} - {trader.internal_state[1]}")
+            elif trader.internal_state[0] == TraderState.ACTIVE:
+                active_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)}")
+            elif trader.internal_state[0] == TraderState.HUNTING:
+                hunting_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)}")
+            elif trader.internal_state[0] == TraderState.TRADING:
+                trading_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)} - TRADING")
+            elif trader.internal_state[0] == TraderState.IDLE:
+                idle_list_msg.append(f"status: {trader.internal_state[0]} - {str(trader)} - {trader.internal_state[1]}")
                 idle_list.append(trader)
 
+        headings = []
+        headings.append(f"Initial Active Traders: {initial_active_traders}")
+        headings.append(f"Total of Trades Executed: {gt.g_total_trades_executed}")
+        headings.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
+        headings.append(f"g_incomplete_trade_counter: {gt.g_incomplete_trade_counter}")
+        headings.append(f"g_consecutive_trade_failure: {gt.g_consecutive_trade_failure}")
+        headings.append(f"sleep time: {calculate_sleep_time()} seconds")
+        headings.append("---------------------------------------------------")
+        headings.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
+        headings.append(f"{len(hunting_list_msg)} / {initial_active_traders} hunting traders")
+        headings.append(f"{len(trading_list_msg)} / {initial_active_traders} trading traders")
+        headings.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
+        headings.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
+        headings.append("---------------------------------------------------")
+        headings.append(f"timestamp: {_now}")
+        headings.append(f"refresh every: {TRADER_MONITOR_SLEEP} seconds")
+        headings.append("=====================================================================")
+
         msg.extend(headings)
+        msg.extend(trading_list_msg)
         msg.extend(idle_list_msg)
         msg.extend(active_list_msg)
+        msg.extend(hunting_list_msg)
         msg.extend(dormant_list_msg)
         msg.append("============================================================")
-        msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
-        msg.append(f"{len(dormant_list_msg)} / {initial_active_traders} dormant traders")
-        msg.append(f"{len(idle_list)} / {len(active_list_msg)} idling traders")
-        msg.append(f"g_total_active_traders: {gt.g_total_active_traders} (static only)")
-        msg.append(f"g_trade_transaction_counter: {gt.g_trade_transaction_counter}")
-        msg.append(f"MAX_TRADING_TRANSACTIONS: {MAX_TRADING_TRANSACTIONS}")
-        msg.append(f"sleep time: {calculate_sleep_time()} seconds")
+
         msg.append(f"idling traders:")
         for trader in idle_list:
-            msg.append(f"{trader.internal_state_reason} --- {str(trader)}")
+            msg.append(f"{trader.internal_state[1]} --- {str(trader)}")
 
         active_list_log.extend(headings)
         active_list_log.extend(active_list_msg)
-        active_list_msg.append("============================================================")
+        active_list_msg.append("=====================================================================")
         active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
-
-        # TODO: exiting program when MAX_TRADING_TRANSACTIONS_EXCEEDED
-        async with gt.g_lock:
-            if gt.g_trade_transaction_counter >= MAX_TRADING_TRANSACTIONS:
-                msg.append(f"Exiting the program : MAX_TRADING_TRANSACTIONS_EXCEEDED")
-                exit_program = True
-
 
         # save log ever 30 sec
         filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
@@ -413,13 +468,6 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
 
         counter += 1
 
-        msg.clear()
-        active_list_log.clear()
-        active_list_msg.clear()
-        dormant_list_msg.clear()
-        idle_list.clear()
-        idle_list_msg.clear()
-
         await asyncio.sleep(TRADER_MONITOR_SLEEP)
 
 
@@ -432,6 +480,7 @@ def calculate_sleep_time():
     SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
     LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
     """
-    total_active_traders = len([x for x in gt.g_trader_list if x.internal_state != TraderState.DORMANT])
+    #total_active_traders = len([x for x in gt.g_trader_list if x.internal_state[0] != TraderState.DORMANT or x.internal_state[0] != TraderState.IDLE])
+    total_active_traders = sum(1 for x in gt.g_trader_list if x.internal_state[0] != TraderState.DORMANT and x.internal_state[0] != TraderState.IDLE)
     sleep_time = (LIMIT_PER_DAY and SECONDS_IN_A_DAY * total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY) or DEFAULT_SLEEP_TIME
     return sleep_time
