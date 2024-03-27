@@ -107,15 +107,19 @@ class TestUniswapApi(unittest.TestCase):
         token3 = CryptoToken_Exp1(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
         :return:
         """
-        amount_in = 10
-        stable = token1
+        token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
+        #token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+        #token2 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
+        token2 = CryptoToken(Web3.to_checksum_address("0x1CFBddc8D66328ca250EC720c9f62DB08aa4BC6f"), "WTRIAD", 18)
 
-        amount_out = _uniswap.quote_price_input(token2, stable, amount_in)
-        print(f"Quoter : Swapping {amount_in} {token2.symbol} for {amount_out} {stable.symbol}")
+        amount_in = 10
+
+        amount_out = _uniswap.quote_price_input(token2, token1, amount_in)
+        print(f"Quoter : Swapping {amount_in} {token2.symbol} for {amount_out} {token1.symbol}")
 
         amount_in = amount_out or 100
-        amount_out = _uniswap.quote_price_input(stable, token2, amount_in)
-        print(f"Quoter : Swapping {amount_in} {stable.symbol} for {amount_out} {token2.symbol}")
+        amount_out = _uniswap.quote_price_input(token1, token2, amount_in)
+        print(f"Quoter : Swapping {amount_in} {token1.symbol} for {amount_out} {token2.symbol}")
 
 
     def _test_quoter_multipool(self):
