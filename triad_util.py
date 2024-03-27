@@ -307,16 +307,11 @@ def load_keys_from_file():
     except json.JSONDecodeError:
         print(f"error decoding JSON in file '{file_path}'.")
 
-<<<<<<< HEAD
 
-keys = load_keys_from_file()
-network = uniswap_api.get_network("sepolia")
-=======
 networkName = "sepolia"
 keys = uniswap_helper.load_keys_from_file()
 network = uniswap_api.get_network(networkName)
 print(f"running on network: {network}")
->>>>>>> sol_pair_flash
 provider = Web3.HTTPProvider(network["provider"])
 w3 = Web3(provider)
 uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
