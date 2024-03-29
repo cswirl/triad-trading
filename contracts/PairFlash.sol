@@ -136,9 +136,11 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
 
         // pay our wallet-->decoded.payer
         uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, decoded.borrowedAmount);
-        TransferHelper.safeApprove(token1, address(this), profit0);
-        pay(token1, address(this), decoded.payer, profit0);
-
+        if (profit0 > 0) {
+            TransferHelper.safeApprove(token1, address(this), profit0);
+            pay(token1, address(this), decoded.payer, profit0);
+        }
+        
     }
 
     //fee1, fee2, fee3 are the ones we used in the Quoter - from python program
