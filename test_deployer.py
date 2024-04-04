@@ -63,7 +63,7 @@ class TestDeployer(unittest.TestCase):
 
     def test_struct_flash_params(self):
         """
-        "Greetings from USDT_WETH_RLB_2f31aaa2-93c5-4540-8cf5-6147d3e79c0e",
+        "Greetings from USDC_WDS_YT",
         "Active Traders: 156  (inaccurate: testing for sleep calculation)",
         "Test Fund: 100 USDT ---approx. 100 USD",
         "Changing state: 'Hunting Profit'",
@@ -71,6 +71,11 @@ class TestDeployer(unittest.TestCase):
         "Quote 1 : USDC to WDS",
         "Quote 2 : WDS to YT",
         "Quote 3 : YT to USDC",
+
+        ============================ COUNTER FLOW
+        "Quote 1 : USDC to YT",
+        "Quote 2 : YT to WDS",
+        "Quote 3 : WDS to USDC",
         "--------------------",
 
         """
@@ -134,7 +139,8 @@ class TestDeployer(unittest.TestCase):
             "fee2": fee2,
             "fee3": fee3,
             "sqrtPriceLimitX96": 0,  # we do not understand this as of now
-            "addToDeadline": addToDeadline
+            "addToDeadline": addToDeadline,
+            "counterFlow": True
         }
 
 
@@ -168,7 +174,7 @@ class TestDeployer(unittest.TestCase):
         tx_build = flash.functions.initFlash(params).build_transaction({
             "chainId": chain_id,
             "value": 0,
-            "gas": 400000,
+            "gas": 900000,
             "gasPrice": gas_price,
             "nonce": nonce
         })

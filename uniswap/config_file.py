@@ -53,7 +53,7 @@ Networks = {
             "abiName": "sepolia_quoter"
         },
         "flashLoan": {
-            "address": Web3.to_checksum_address("0xBe31C54EcFB4dFC20BfC11F504E9Eeb5dd518029"),
+            "address": Web3.to_checksum_address("0x52E038D916b6e4B6544E12C04856964b35AcA733"),
             "abiName": "sepolia_flash_loan"
         }
     },

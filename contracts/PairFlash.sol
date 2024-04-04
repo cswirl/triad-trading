@@ -31,35 +31,12 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         swapRouter = _swapRouter;
     }
 
-    /// @param fee0 The fee from calling flash for token0
-    /// @param fee1 The fee from calling flash for token1
-    /// @param data The data needed in the callback passed as FlashCallbackData from `initFlash`
-    /// @notice implements the callback called from flash
-    /// @dev fails if the flash is not profitable, meaning the amountOut from the flash is less than the amount borrowed
-    function uniswapV3FlashCallback(
-        uint256 fee0,
-        uint256 fee1,
-        bytes calldata data
-    ) external override {
-        FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
-        CallbackValidation.verifyCallback(factory, decoded.poolKey);
-
-        // When this callback is invoked, it means this contract was already funded using pool.flash
-        // in the function initFlash and stored in FlashCallbackData.borrowedAmount
-        // and that value can be accessed here via the decoded.borrowedAmount
-
-        uint256 amount0Owed = LowGasSafeMath.add(decoded.amount0, fee0);
-        uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
-
-        // Calculate the amount to repay at the end
-        uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
+    function _triArbSwap(FlashCallbackData memory decoded) internal returns (uint256) {
 
         // get pathway triplet token addresses
         address token1 = decoded.token1;
         address token2 = decoded.token2;
         address token3 = decoded.token3;
-
-        emit LogCallBackInitParams(token1, token2, token3, decoded.borrowedAmount);
 
         // If any one of the three swaps fails, the whole transaction will fail because
         //  exactInputSingle will throw an error: - if result is less than amountOutMinimum
@@ -119,10 +96,59 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         // this calculation recognized that the fee is included for each swap
         // - however, the cost for the whole transaction is not included in the calculation
 
+        return swap3_amountOut;
+    }
+
+    /// @param fee0 The fee from calling flash for token0
+    /// @param fee1 The fee from calling flash for token1
+    /// @param data The data needed in the callback passed as FlashCallbackData from `initFlash`
+    /// @notice implements the callback called from flash
+    /// @dev fails if the flash is not profitable, meaning the amountOut from the flash is less than the amount borrowed
+    function uniswapV3FlashCallback(
+        uint256 fee0,
+        uint256 fee1,
+        bytes calldata data
+    ) external override {
+        FlashCallbackData memory decoded = abi.decode(data, (FlashCallbackData));
+        CallbackValidation.verifyCallback(factory, decoded.poolKey);
+
+        // When this callback is invoked, it means this contract was already funded using pool.flash
+        // in the function initFlash and stored in FlashCallbackData.borrowedAmount
+        // and that value can be accessed here via the decoded.borrowedAmount
+
+        uint256 amount0Owed = LowGasSafeMath.add(decoded.amount0, fee0);
+        uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
+
+        // Calculate the amount to repay at the end
+        uint256 totalOwing = decoded.borrowedAmount * (1 + decoded.poolFee1 / 1e6);
+
+        // get pathway triplet token addresses
+        address token1 = decoded.token1;
+        address token2 = decoded.token2;
+        address token3 = decoded.token3;
+
+        emit LogCallBackInitParams(token1, token2, token3, decoded.borrowedAmount);
+
+        uint256 swap3_amountOut = _triArbSwap(decoded);
+
         // this minimum check must be met - it may save some gas
         // - any profits even tiny will help offset the transaction cost, at the least
         emit Result(swap3_amountOut, totalOwing);
-        //require(swap3_amountOut > totalOwing, "Profit is less than total owing");
+
+        // Try Counterflow Triangular
+        if (swap3_amountOut <= totalOwing && decoded.counterFlow) {
+            // Re-arrange tokens
+            address tmp1 = decoded.token2;
+            decoded.token2 = decoded.token3;
+            decoded.token3 = tmp1;
+            // Re-arrange Pool Fees
+            uint24 feeTemp = decoded.poolFee1;
+            decoded.poolFee1 = decoded.poolFee3;
+            decoded.poolFee3 = feeTemp;
+
+            swap3_amountOut = _triArbSwap(decoded);
+            emit Result(swap3_amountOut, totalOwing);
+        }
 
         // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
         // if profitable, send profits to payer-->our wallet: decoded.payer
@@ -163,6 +189,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 fee3;
         uint24 sqrtPriceLimitX96;
         uint24 addToDeadline;
+        bool counterFlow;
     }
     //
     struct FlashCallbackData {
@@ -182,6 +209,7 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         uint24 poolFee3;
         uint24 sqrtPriceLimitX96;
         uint24 addToDeadline;
+        bool counterFlow;
     }
 
     /// @param params The parameters necessary for flash and the callback, passed in as FlashParams
@@ -223,9 +251,11 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
                     poolFee2: params.fee2,
                     poolFee3: params.fee3,
                     sqrtPriceLimitX96: params.sqrtPriceLimitX96,
-                    addToDeadline: params.addToDeadline
+                    addToDeadline: params.addToDeadline,
+                    counterFlow: params.counterFlow
                 })
             )
         );
     }
 }
+
