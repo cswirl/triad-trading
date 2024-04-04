@@ -271,8 +271,8 @@ def execute_flash(flashParams_dict: dict):
         "nonce": uniswap.last_nonce,
         "chainId": uniswap.chain_id,
         "value": 0,
-        "gas": 300000,
-        "gasPrice": Web3.to_wei("5.5", "gwei")
+        "gas": 400000,  # approximately 370,000 gas is being used
+        "gasPrice": Web3.to_wei("2", "gwei")
     })
 
     # Sign transaction

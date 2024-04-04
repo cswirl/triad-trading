@@ -106,11 +106,15 @@ class TestUniswapApi(unittest.TestCase):
         token2 = CryptoToken_Exp1(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
         token3 = CryptoToken_Exp1(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
         :return:
+
+        "Quote 1 : USDC to WDS",
+        "Quote 2 : WDS to YT",
+        "Quote 3 : YT to USDC",
         """
         token1 = CryptoToken(Web3.to_checksum_address("0xaC5e009C07540172DD8457Be7961895d58e4aD2d"), "USDC", 18)
-        #token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
+        token2 = CryptoToken(Web3.to_checksum_address("0xdC0b7c0693B7689B324A0Ef8Ab210609Ba0cF994"), "WDS", 18)
         #token2 = CryptoToken(Web3.to_checksum_address("0xDE3fC64BD79c1806Cb17F1C2eb794882114ca1cE"), "YT", 18)
-        token2 = CryptoToken(Web3.to_checksum_address("0x1CFBddc8D66328ca250EC720c9f62DB08aa4BC6f"), "WTRIAD", 18)
+        #token2 = CryptoToken(Web3.to_checksum_address("0x1CFBddc8D66328ca250EC720c9f62DB08aa4BC6f"), "WTRIAD", 18)
 
         amount_in = 10
 

@@ -1,4 +1,7 @@
 import warnings
+
+from uniswap import uniswap_helper
+
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 import unittest
@@ -67,8 +70,6 @@ class TestDeployer(unittest.TestCase):
         "================================================================================Inquiring price",
         "Quote 1 : USDC to WDS",
         "Quote 2 : WDS to YT",
-        "Quote 3 : YT to WDS",
-
         "Quote 3 : YT to USDC",
         "--------------------",
 
@@ -94,7 +95,7 @@ class TestDeployer(unittest.TestCase):
         zeroForOne = Web3.to_int(hexstr=usdc.id) < Web3.to_int(hexstr=wtriad.id)
         if zeroForOne:
             token0 = one
-            amount_0 = swap1_amount # int(swap1_amount * (10 ** token0.decimals))
+            amount_0 = int(swap1_amount * (10 ** token0.decimals))
             borrowed_amount = amount_0
 
             token1 = two
@@ -104,13 +105,17 @@ class TestDeployer(unittest.TestCase):
             amount_0 = 0    #int(0.03978381769984377 * (10 ** two.decimals)) #0
 
             token1 = one
-            amount_1 =  swap1_amount #int(swap1_amount * (10 ** token1.decimals))
+            amount_1 =  int(swap1_amount * (10 ** token1.decimals))
             borrowed_amount = amount_1
 
         # token0 = one if zeroForOne else two
         # token1 = two if zeroForOne else one
         # amount_0 = swap1_amount if zeroForOne else 0
         # amount_1 = 0 if zeroForOne else swap1_amount1
+
+        quote1 = tu.uniswap.quote_price_input(one, two, borrowed_amount, fee=3000)
+        quote2 = tu.uniswap.quote_price_input(two, three, quote1, fee=3000)
+        quote3 = tu.uniswap.quote_price_input(three, one, quote2, fee=3000)
 
         FlashParams = {
             "token_0": wtriad.id,
@@ -122,9 +127,9 @@ class TestDeployer(unittest.TestCase):
             "token1": one.id,  # this is the token we need borrowing
             "token2": two.id,
             "token3": three.id,
-            "quote1": 0,
-            "quote2": 0,
-            "quote3": 0,
+            "quote1": 0, # quote1, # uniswap_helper.decimal_right_shift(quote1, 18),
+            "quote2": 0, # quote2, #uniswap_helper.decimal_right_shift(quote2, 18),
+            "quote3": 0, # quote3, #uniswap_helper.decimal_right_shift(quote3, 18),
             "fee1": fee1,
             "fee2": fee2,
             "fee3": fee3,
@@ -146,7 +151,7 @@ class TestDeployer(unittest.TestCase):
         # Variables
         chain_id = 11155111   # 56 Binance Smart Chain number, Ethereum is 1
         gas = 300000
-        gas_price = Web3.to_wei("5.5", "gwei")
+        gas_price = Web3.to_wei("2", "gwei")
         send_bnb = 0.01
         amount = Web3.to_wei(send_bnb, "ether")  # not sure why "ether" is used
 
@@ -163,7 +168,7 @@ class TestDeployer(unittest.TestCase):
         tx_build = flash.functions.initFlash(params).build_transaction({
             "chainId": chain_id,
             "value": 0,
-            "gas": 8000000,
+            "gas": 400000,
             "gasPrice": gas_price,
             "nonce": nonce
         })
