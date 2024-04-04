@@ -120,13 +120,13 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         // - however, the cost for the whole transaction is not included in the calculation
 
         // this minimum check must be met - it may save some gas
-        // - any profits even tiny will help offset the transaction cost, at the least 
+        // - any profits even tiny will help offset the transaction cost, at the least
         emit Result(swap3_amountOut, totalOwing);
         //require(swap3_amountOut > totalOwing, "Profit is less than total owing");
 
         // if a losing trade, the payback to the pool will fail, thus, the whole transaction will revert itself
         // if profitable, send profits to payer-->our wallet: decoded.payer
-        
+
         // pay back the pool: pay both to make sure we don't miss any OR ELSE whole transaction will fail
         TransferHelper.safeApprove(decoded.poolKey.token0, address(this), amount0Owed);
         TransferHelper.safeApprove(decoded.poolKey.token1, address(this), amount1Owed);
@@ -135,12 +135,13 @@ contract PairFlash is IUniswapV3FlashCallback, PeripheryImmutableState, Peripher
         if (amount1Owed > 0) pay(decoded.poolKey.token1, address(this), msg.sender, amount1Owed);
 
         // pay our wallet-->decoded.payer
-        uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, decoded.borrowedAmount);
-        if (profit0 > 0) {
+        int256 profit = LowGasSafeMath.sub(int256(swap3_amountOut), int256(decoded.borrowedAmount));
+        if (profit > 0) {
+            uint256 profit0 = LowGasSafeMath.sub(swap3_amountOut, decoded.borrowedAmount);
             TransferHelper.safeApprove(token1, address(this), profit0);
             pay(token1, address(this), decoded.payer, profit0);
         }
-        
+
     }
 
     //fee1, fee2, fee3 are the ones we used in the Quoter - from python program

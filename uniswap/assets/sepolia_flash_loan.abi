@@ -1,5 +1,26 @@
 [
 	{
+		"inputs": [
+			{
+				"internalType": "contract ISwapRouter",
+				"name": "_swapRouter",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_factory",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_WETH9",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -35,97 +56,10 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "address",
-				"name": "token0",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "token1",
-				"type": "address"
-			},
-			{
-				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount0",
+				"name": "swap3_amountOut",
 				"type": "uint256"
 			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount1",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "fee0",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "fee1",
-				"type": "uint256"
-			}
-		],
-		"name": "LogCallBackParams",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "token_0",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "token_1",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "token1",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "borrowedAmount",
-				"type": "uint256"
-			}
-		],
-		"name": "LogInitFlash",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "amountOut_min",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "amountOut",
-				"type": "uint256"
-			}
-		],
-		"name": "LogSwap",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
 			{
 				"indexed": false,
 				"internalType": "uint256",
@@ -133,8 +67,34 @@
 				"type": "uint256"
 			}
 		],
-		"name": "LogTotalOwing",
+		"name": "Result",
 		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "WETH9",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "factory",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -149,6 +109,11 @@
 						"internalType": "address",
 						"name": "token_1",
 						"type": "address"
+					},
+					{
+						"internalType": "uint24",
+						"name": "fee0",
+						"type": "uint24"
 					},
 					{
 						"internalType": "uint256",
@@ -239,6 +204,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "swapRouter",
+		"outputs": [
+			{
+				"internalType": "contract ISwapRouter",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -260,10 +238,6 @@
 		"outputs": [],
 		"stateMutability": "payable",
 		"type": "function"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
 	},
 	{
 		"inputs": [
@@ -307,63 +281,7 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "contract ISwapRouter",
-				"name": "_swapRouter",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_factory",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_WETH9",
-				"type": "address"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"inputs": [],
-		"name": "factory",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "swapRouter",
-		"outputs": [
-			{
-				"internalType": "contract ISwapRouter",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "WETH9",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
+		"stateMutability": "payable",
+		"type": "receive"
 	}
 ]
