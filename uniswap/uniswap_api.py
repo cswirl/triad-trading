@@ -170,6 +170,8 @@ def create_tokens_and_trading_pairs(data_pools:[]):
             quote_token
         )
         tokenA, tokenB = pair_symbol.split(PAIRS_DELIMITER)
+        # pairs_map = (string => list of pools)
+        # - i.e. (pool_key => [pool1, pool2, pool3])
         if generate_pool_key(tokenA,tokenB) in pairs_map.keys():
             pairs_map[generate_pool_key(tokenA, tokenB)].append(pool)
         else:
