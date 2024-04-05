@@ -171,9 +171,24 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
-def _get_flashswap_loaner(tokenA, tokenB):
+def _get_flashswap_loaners(tokenA, tokenB, fee):
+    loaners = []
 
-    pair_obj = uniswap_api.find_pair_object(tokenA,tokenB)
+    pools = uniswap_api.find_pools(tokenA,tokenB)
+    # get pools within own trading pair
+    if len(pools) > 1:
+        own_pool = [obj for obj in pools if obj.fee_tier != str(fee)]
+        loaners.extend(own_pool)
+
+    # try other pools containing tokenA, i.e. the token we want to borrow
+    key_to_exclude = uniswap_api.generate_pool_key(tokenA, tokenB)
+    other_pools = {key: value for key, value in uniswap_api.PAIRS_DICT.items() if key != key_to_exclude}
+    flatted_list = [item for pools in other_pools.values() for item in pools]
+    # filter pools which has tokenA in its pair
+    filtered_list = [pool for pool in flatted_list if tokenA in pool.pair_symbol.split(PAIRS_DELIMITER)]
+    loaners.extend(filtered_list)
+
+    return sorted(loaners, key=lambda x: float(x.tvl_eth) if len(x.tvl_eth) > 1 else 0, reverse=True)[:15]
 
 def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     """
@@ -209,7 +224,7 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     addToDeadline = 60*10  # seconds - doesn't matter much with flash swap
 
     # get the pool to borrow from
-    t1, t2, poolFee = _get_flashswap_loaner(first_symbol, second_symbol)
+    t1, t2, poolFee = _get_flashswap_loaners(first_symbol, second_symbol)
 
     # only the first pair is important to be in correct order for the initFlash to identify the pool address
     # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
