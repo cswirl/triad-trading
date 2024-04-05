@@ -273,14 +273,28 @@ def find_pair_object(pair_symbol)->TradingPair|None:
     :return pair_obj (TradingPair or None): TradingPair instance
     """
     tokenA, tokenB = pair_symbol.split(PAIRS_DELIMITER)
+    pools = find_pools(tokenA, tokenB)
+    if pools:
+        # todo: get the pool with greatest amount of tvl eth?
+        # return max(pair_obj, key=lambda x : x.tvl_eth)
+        # !!! - already sorted by tvlETH from TheGraph query, so return the first one
+        return pools[0]
+    else:
+        return None
+
+
+def find_pools(tokenA: str, tokenB: str)->list[TradingPair] | None:
+    """
+    Find the TradingPair object instance in the pairs_map
+    Order of tokenA and tokenB doesn't matter
+
+    :return pools (list[TradingPair] or None): list of TradingPairs
+    """
     pool_key = generate_pool_key(tokenA, tokenB)
     try:
-        pair_obj = (pool_key in PAIRS_DICT and PAIRS_DICT[pool_key]) or None
-        if pair_obj or len(pair_obj) > 1:
-            # todo: get the pool with greatest amount of tvl eth?
-            #return max(pair_obj, key=lambda x : x.tvl_eth)
-            # !!! - already sorted by tvlETH from TheGraph query, so return the first one
-            return pair_obj[0]
+        pools = (pool_key in PAIRS_DICT and PAIRS_DICT[pool_key]) or None
+        if pools or len(pools) > 1:
+            return pools
         else:
             print(f"Key '{pool_key}' does not exist in the list of Trading Pairs.")
 

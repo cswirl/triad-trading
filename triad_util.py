@@ -171,6 +171,10 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
+def _get_flashswap_loaner(tokenA, tokenB):
+
+    pair_obj = uniswap_api.find_pair_object(tokenA,tokenB)
+
 def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     """
             "Greetings from USDT_WETH_RLB_2f31aaa2-93c5-4540-8cf5-6147d3e79c0e",
@@ -202,8 +206,10 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     # quote3 = int(100.196489 * (10 ** one.decimals))
     # #
     swap1_amount = quotation_dict["seedAmount"]
+    addToDeadline = 60*10  # seconds - doesn't matter much with flash swap
 
-    addToDeadline = 200  # seconds
+    # get the pool to borrow from
+    t1, t2, poolFee = _get_flashswap_loaner(first_symbol, second_symbol)
 
     # only the first pair is important to be in correct order for the initFlash to identify the pool address
     # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
@@ -258,7 +264,7 @@ def execute_flash(flashParams_dict: dict):
         "nonce": uniswap.last_nonce,
         "chainId": uniswap.chain_id,
         "value": 0,
-        "gas": 800000,  # approximately 370,000 gas is being used
+        "gas": 800000,  # approximately 370,000 to 700,000 gas is being used
         "gasPrice":  Web3.to_wei("0.01", "gwei")
     })
 
@@ -295,8 +301,9 @@ def load_keys_from_file():
         print(f"error decoding JSON in file '{file_path}'.")
 
 
-networkName = "sepolia"
+#networkName = "sepolia"
 #networkName = "arbitrum"
+networkName = "mainnet"
 keys = uniswap_helper.load_keys_from_file()
 network = uniswap_api.get_network(networkName)
 print(f"running on network: {network}")
