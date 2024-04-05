@@ -9,6 +9,34 @@ from uniswap.constants import *
 from uniswap.token_pair import TradingPair
 
 """ RETRIEVE GRAPH QL MID PRICES FOR UNISWAP """
+
+def retrieve_arbitrum_uniswap_information():
+    query = """
+             {
+              liquidityPools(orderBy: totalValueLockedUSD, orderDirection: desc, first: 500) 
+              {
+                id
+                totalValueLockedUSD
+                symbol
+                totalLiquidityUSD
+                totalLiquidity
+                inputTokenBalances
+                inputTokens {
+                  id
+                  decimals
+                  symbol
+                  name
+                  lastPriceUSD
+                }
+              }
+            }
+        """
+
+    url = "https://api.thegraph.com/subgraphs/name/messari/uniswap-v3-arbitrum"
+    req = requests.post(url, json={'query': query})
+    json_dict = json.loads(req.text)
+    return json_dict
+
 def retrieve_uniswap_information():
     query = """
              {
