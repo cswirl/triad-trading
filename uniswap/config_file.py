@@ -77,6 +77,21 @@ Networks = {
             "address": Web3.to_checksum_address("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"),
             "abiName": "quoter"
         }
+    },
+    "arbitrum": {
+        "chainId": "42161",
+        "provider": "https://arbitrum-mainnet.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6",
+        "factory": Web3.to_checksum_address("0x1F98431c8aD98523631AE4a59f267346ea31F984"),
+        "router": Web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564"),
+        "weth9": Web3.to_checksum_address("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"),
+        "quoter": {
+            "address": Web3.to_checksum_address("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"),
+            "abiName": "quoter"
+        },
+        "flashLoan": {
+            "address": Web3.to_checksum_address("0x4d9E52a4C109264F5F979F75632268280549A83A"),
+            "abiName": "arbitrum_flash_loan"
+        }
     }
 }
 

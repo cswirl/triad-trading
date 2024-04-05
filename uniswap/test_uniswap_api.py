@@ -213,3 +213,10 @@ class TestUniswapApi(unittest.TestCase):
         _ =  weth
         print(_)
         _ =""
+
+# =================================== ARBITRUM
+
+    def test_retrieve_arbitrum_uniswap_information(self):
+        result = uniswap_api.retrieve_arbitrum_uniswap_information()
+        print(result)
+        pass

@@ -207,7 +207,7 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
 
     # only the first pair is important to be in correct order for the initFlash to identify the pool address
     # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
-    zeroForOne = Web3.to_int(hexstr=one.id) < Web3.to_int(hexstr=two.id)
+    zeroForOne = Web3.to_hex(hexstr=one.id) < Web3.to_hex(hexstr=two.id)
     if zeroForOne:
         token0 = one
         amount_0 = int(swap1_amount * (10 ** token0.decimals))
@@ -226,6 +226,7 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     FlashParams = {
         "token_0": token0.id,   # zeroForOne is used to correct ordering which is token_0 or token_1
         "token_1": token1.id,
+        "fee0": 3000,
         "amount0": amount_0,
         "amount1": amount_1,
         "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
@@ -239,7 +240,8 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
         "fee2": quotation_dict["fee2"],
         "fee3": quotation_dict["fee3"],
         "sqrtPriceLimitX96": 0,         # we do not understand this as of now
-        "addToDeadline": addToDeadline
+        "addToDeadline": addToDeadline,
+        "counterFlow": True
     }
 
     return FlashParams
@@ -252,27 +254,12 @@ def execute_flash(flashParams_dict: dict):
         print("Error: flash loan contract did not load properly")
         return (False, None, None)
 
-    # # Build Transaction -
-    # tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
-    #     # "from": uniswap.address,
-    #     # "chainId": chain_id,
-    #     # "value": 0,
-    #     # "gas": gas,
-    #     # "gasPrice": gas_price,
-    #     # "nonce": nonce
-    #     "chainId": chain_id,
-    #     "value": 0,
-    #     "gas": gas,
-    #     "gasPrice": gas_price,
-    #     "nonce": nonce
-    # })
-
     tx_build = flash.functions.initFlash(flashParams_dict).build_transaction({
         "nonce": uniswap.last_nonce,
         "chainId": uniswap.chain_id,
         "value": 0,
-        "gas": 400000,  # approximately 370,000 gas is being used
-        "gasPrice": Web3.to_wei("2", "gwei")
+        "gas": 800000,  # approximately 370,000 gas is being used
+        "gasPrice":  Web3.to_wei("0.01", "gwei")
     })
 
     # Sign transaction
@@ -309,6 +296,7 @@ def load_keys_from_file():
 
 
 networkName = "sepolia"
+#networkName = "arbitrum"
 keys = uniswap_helper.load_keys_from_file()
 network = uniswap_api.get_network(networkName)
 print(f"running on network: {network}")
