@@ -169,11 +169,11 @@ def create_tokens_and_trading_pairs(data_pools:[]):
             base_token,
             quote_token
         )
-
-        if generate_pool_key(pair_symbol) in pairs_map.keys():
-            pairs_map[generate_pool_key(pair_symbol)].append(pool)
+        tokenA, tokenB = pair_symbol.split(PAIRS_DELIMITER)
+        if generate_pool_key(tokenA,tokenB) in pairs_map.keys():
+            pairs_map[generate_pool_key(tokenA, tokenB)].append(pool)
         else:
-            pairs_map[generate_pool_key(pair_symbol)] = [pool]
+            pairs_map[generate_pool_key(tokenA, tokenB)] = [pool]
 
 
     #save to json file for study
@@ -263,26 +263,27 @@ def _recreate_triad_structure(pools_data):
 # #####################################################
 #     Utilities
 # #####################################################
-def find_pair_object(pair_symbol)->TradingPair:
+def find_pair_object(pair_symbol)->TradingPair|None:
     """
     Find the TradingPair object instance in the pairs_map
 
     :param pair_symbol (str): unique key
     :return pair_obj (TradingPair or None): TradingPair instance
     """
+    tokenA, tokenB = pair_symbol.split(PAIRS_DELIMITER)
+    pool_key = generate_pool_key(tokenA, tokenB)
     try:
-        pair_symbol = generate_pool_key(pair_symbol)
-        pair_obj = (pair_symbol in PAIRS_DICT and PAIRS_DICT[pair_symbol]) or None
+        pair_obj = (pool_key in PAIRS_DICT and PAIRS_DICT[pool_key]) or None
         if pair_obj or len(pair_obj) > 1:
             # todo: get the pool with greatest amount of tvl eth?
             #return max(pair_obj, key=lambda x : x.tvl_eth)
-            #already sorted by tvlETH
-            return pair_obj[0] # using shaun algorithm where it uses the first pool found
+            # !!! - already sorted by tvlETH from TheGraph query, so return the first one
+            return pair_obj[0]
         else:
-            print(f"Key '{pair_symbol}' does not exist in the list of Trading Pairs.")
+            print(f"Key '{pool_key}' does not exist in the list of Trading Pairs.")
 
     except KeyError as e:
-        print(f"KeyError: {e}. Key '{pair_symbol}' does not exist in the dictionary.")
+        print(f"KeyError: {e}. Key '{pool_key}' does not exist in the dictionary.")
 
     return None
 
@@ -304,8 +305,8 @@ def get_token(symbol):
 
     return token
 
-def generate_pool_key(pair_symbol: str):
-    pool_key = sorted(pair_symbol.split(PAIRS_DELIMITER))
+def generate_pool_key(tokenA: str, tokenB: str):
+    pool_key = sorted([tokenA, tokenB])
     return "_".join(pool_key)
 
 
