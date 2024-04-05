@@ -88,12 +88,12 @@ class Trader:
             if quotation_dict:
                 u.play_sound()
 
-            # Few attempts on getting funding from wallet and generous sleep time amount is needed for this operation
+            # Few attempts on getting funding from wallet and generous amount of sleep time amount is needed for this operation
             # - and then return False after enough attempts
 
             response, fund_in_usd, seedFund = await self.ask_for_funding()
 
-            # Returning false will break the outer trading execution loop
+            # Returning false will break the outer trading execution loop in the start_trading()
             if response is not FundingResponse.APPROVED:
                 return CONTINUE_OUTER_LOOP
 
