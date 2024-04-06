@@ -6,6 +6,7 @@ from web3.exceptions import TimeExhausted
 
 from uniswap import uniswap_api, uniswap_helper
 from uniswap.constants import PAIRS_DELIMITER
+from uniswap.token_pair import TradingPair
 from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
@@ -171,7 +172,7 @@ def convert_usd_to_token(usd_amount, token_symbol_out):
 
     return amount_out
 
-def _get_flashswap_loaners(tokenA, tokenB, fee):
+def get_flashswap_loaners(tokenA, tokenB, fee)->list[TradingPair]:
     loaners = []
 
     pools = uniswap_api.find_pools(tokenA,tokenB)
@@ -188,7 +189,7 @@ def _get_flashswap_loaners(tokenA, tokenB, fee):
     filtered_list = [pool for pool in flatted_list if tokenA in pool.pair_symbol.split(PAIRS_DELIMITER)]
     loaners.extend(filtered_list)
 
-    return sorted(loaners, key=lambda x: float(x.tvl_eth) if len(x.tvl_eth) > 1 else 0, reverse=True)[:15]
+    return sorted(loaners, key=lambda x: x.tvl_eth, reverse=True)[:5]
 
 def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     """
@@ -215,6 +216,10 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     two = uniswap_api.get_token(second_symbol)
     three = uniswap_api.get_token(third_symbol)
 
+    # # loaner pool
+    # tokenA = uniswap_api.get_token(quotation_dict["tokenA"])
+    # tokenB = uniswap_api.get_token(quotation_dict["tokenB"])
+
     # #
     # quote1 = int(0.03978381769984377 * (10 ** two.decimals))
     # quote2 = int(777.5967111439336 * (10 ** three.decimals))
@@ -223,40 +228,37 @@ def flashloan_struct_param(pathway_triplet: str, quotation_dict: dict):
     swap1_amount = quotation_dict["seedAmount"]
     addToDeadline = 60*10  # seconds - doesn't matter much with flash swap
 
-    # get the pool to borrow from
-    t1, t2, poolFee = _get_flashswap_loaners(first_symbol, second_symbol)
-
     # only the first pair is important to be in correct order for the initFlash to identify the pool address
     # using zeroForOne worked on usdt and weth in which the zeroForOne is WETH_USDT
-    zeroForOne = Web3.to_hex(hexstr=one.id) < Web3.to_hex(hexstr=two.id)
+    zeroForOne = Web3.to_hex(hexstr=quotation_dict["tokenA"].id) < Web3.to_hex(hexstr=quotation_dict["tokenB"].id)
     if zeroForOne:
-        token0 = one
+        token0 = quotation_dict["tokenA"]
         amount_0 = int(swap1_amount * (10 ** token0.decimals))
         borrowed_amount = amount_0
 
-        token1 = two
+        token1 = quotation_dict["tokenB"]
         amount_1 = 0  # int(0.03978381769984377 * (10 ** two.decimals)) #0
     else:
-        token0 = two
+        token0 = quotation_dict["tokenB"]
         amount_0 = 0  # int(0.03978381769984377 * (10 ** two.decimals)) #0
 
-        token1 = one
+        token1 = quotation_dict["tokenA"]
         amount_1 = int(swap1_amount * (10 ** token1.decimals))
         borrowed_amount = amount_1
 
     FlashParams = {
         "token_0": token0.id,   # zeroForOne is used to correct ordering which is token_0 or token_1
         "token_1": token1.id,
-        "fee0": 3000,
+        "fee0": quotation_dict["poolFee"],
         "amount0": amount_0,
         "amount1": amount_1,
         "borrowedAmount": borrowed_amount,  # the amount of token in correct decimals
         "token1": one.id,  # this is the token we need borrowing
         "token2": two.id,
         "token3": three.id,
-        "quote1":  uniswap_helper.decimal_right_shift(quotation_dict["quote1"], two.decimals),
-        "quote2": uniswap_helper.decimal_right_shift(quotation_dict["quote2"], three.decimals),
-        "quote3": uniswap_helper.decimal_right_shift(quotation_dict["quote3"], one.decimals),
+        "quote1": 0,    # uniswap_helper.decimal_right_shift(quotation_dict["quote1"], two.decimals),
+        "quote2": 0,    # uniswap_helper.decimal_right_shift(quotation_dict["quote2"], three.decimals),
+        "quote3": 0,    # uniswap_helper.decimal_right_shift(quotation_dict["quote3"], one.decimals),
         "fee1": quotation_dict["fee1"],
         "fee2": quotation_dict["fee2"],
         "fee3": quotation_dict["fee3"],
@@ -280,7 +282,7 @@ def execute_flash(flashParams_dict: dict):
         "chainId": uniswap.chain_id,
         "value": 0,
         "gas": 800000,  # approximately 370,000 to 700,000 gas is being used
-        "gasPrice":  Web3.to_wei("0.01", "gwei")
+        "gasPrice":  Web3.to_wei("0.013", "gwei")
     })
 
     # Sign transaction

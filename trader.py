@@ -56,6 +56,12 @@ class Trader:
         self.get_depth_rate = func_depth_rate
         self.excute_flashloan = func_excute_flashloan
 
+        a,b,c = pathway_triplet.split(PAIRS_DELIMITER)
+        self.token1_symbol = a
+        self.token2_symbol = b
+        self.token3_symbol = c
+        self.flashswap_loaners = []
+
         self.logger(f"Greetings from {str(self)}")
         self.logger(f"Active Traders: {gt.g_total_active_traders}  (inaccurate: testing for sleep calculation)")
         self.logger(f"Test Fund: {self.test_fund} {self.pathway_root_symbol} ---approx. {self.test_fund_usd} USD")
@@ -98,13 +104,16 @@ class Trader:
                 return CONTINUE_OUTER_LOOP
 
             # execute flash loan - initFlash
-            success, tx_hash, receipt = await self.flashloan_execute(
-                triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
-            )
-
-            amount_out_3 = quotation_dict["quote3"]
+            # get instance of pool loaner, i.e. TradingPair object
+            pool_loaner = self._fetch_loaners(quotation_dict)
+            if pool_loaner:
+                quotation_dict["tokenA"] = pool_loaner.token0
+                quotation_dict["tokenB"] = pool_loaner.token1
+                quotation_dict["poolFee"] = pool_loaner.fee_tier
+            success, tx_hash, receipt = await self.flashloan_execute(quotation_dict)
 
             # calculate pnl and pnl percentage
+            amount_out_3 = quotation_dict["quote3"]
             profit_loss = seedFund and amount_out_3 - seedFund
             profit_loss_perc = seedFund and profit_loss / float(seedFund) * 100
 
@@ -288,7 +297,21 @@ class Trader:
 
         return response, fund_in_usd, fund
 
-    async def flashloan_execute(self,flashParams_dict):
+    def _fetch_loaners(self,quotation_dict):
+        # this is a one time execution
+        if len(self.flashswap_loaners) < 1:
+            self.flashswap_loaners = triad_util.get_flashswap_loaners(
+                self.token1_symbol,
+                self.token2_symbol,
+                quotation_dict["fee1"]
+            )
+
+        # get instance of pool loaner, i.e. TradingPair object
+        return self.flashswap_loaners[0]
+
+    async def flashloan_execute(self,quotation_dict):
+
+            
         async with gt.g_lock:
             gt.g_incomplete_trade_counter += 1
             gt.g_total_trades_executed += 1
@@ -297,7 +320,9 @@ class Trader:
         self.logger(indent_1 + "executing flash loan")
         start = time.perf_counter()
 
-        success, tx_hash, receipt = self.excute_flashloan(flashParams_dict)
+        success, tx_hash, receipt = self.excute_flashloan(
+            triad_util.flashloan_struct_param(self.pathway_triplet, quotation_dict)
+        )
 
         async with gt.g_lock:
             gt.g_incomplete_trade_counter -= 1

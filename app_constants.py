@@ -7,7 +7,7 @@ POST_TRADE_CONTINUE = True
 
 SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 # REMEMBER: block time is 15 sec.
-POST_TRADE_EXECUTION_SLEEP = 60*60 # tentative
+POST_TRADE_EXECUTION_SLEEP = 60*2 # tentative
 DEFAULT_SLEEP_TIME = 16
 NO_FUNDS_SLEEP_TIME = 30
 CONTRACT_LOGIC_ERROR_SLEEP = 60 * 2
@@ -45,7 +45,7 @@ GAS_FEE = 3000
 
 
 MAX_TRADING_TRANSACTIONS = 10 # losing gas fee for every reverted / fail triangular trade
-CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
+CONSECUTIVE_FAILED_TRADE_THRESHOLD = 3
 
 # FUNDING_TIER_0 = 500    #all stable coins
 # FUNDING_TIER_1 = 200
@@ -56,7 +56,7 @@ CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
 
 # ---------------- TESTING --------------------------------------------
 # FOR TEST RUN - better to start small! then adjust little by little
-MULTI = 20
+MULTI = 30
 FUNDING_TIER_0 = 100 * MULTI    #all stable coins
 FUNDING_TIER_1 = 80 * MULTI
 FUNDING_TIER_2 = 50 * MULTI

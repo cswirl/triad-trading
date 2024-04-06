@@ -119,8 +119,8 @@ class TestTriadUtil(unittest.TestCase):
         print(f"{b} USD in = {c} {symbol} out")  # amount based on market rate
 
     def test__get_flashswap_loaners(self):
-        result = triad_util._get_flashswap_loaners("DOG","WETH",3000)
-        reverse_res = triad_util._get_flashswap_loaners("WETH","DOG",3000)
+        result = triad_util.get_flashswap_loaners("DOG", "WETH", 3000)
+        reverse_res = triad_util.get_flashswap_loaners("WETH", "DOG", 3000)
         pass
 
 
