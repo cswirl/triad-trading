@@ -319,8 +319,8 @@ def load_keys_from_file():
 
 
 #networkName = "sepolia"
-#networkName = "arbitrum"
-networkName = "mainnet"
+networkName = "arbitrum"
+#networkName = "mainnet"
 keys = uniswap_helper.load_keys_from_file()
 network = uniswap_api.get_network(networkName)
 print(f"running on network: {network}")

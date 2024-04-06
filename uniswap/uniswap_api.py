@@ -3,7 +3,7 @@ import requests
 import json
 from web3 import Web3
 
-from uniswap import token_pair, utils, func_triangular_arb
+from uniswap import token_pair, utils, func_triangular_arb, uniswap_helper
 from uniswap.config_file import *
 from uniswap.constants import *
 from uniswap.token_pair import TradingPair
@@ -13,20 +13,20 @@ from uniswap.token_pair import TradingPair
 def retrieve_arbitrum_uniswap_information():
     query = """
              {
-              liquidityPools(orderBy: totalValueLockedUSD, orderDirection: desc, first: 500) 
-              {
+              liquidityPools(first: 1000, orderBy: totalValueLockedUSD, orderDirection: desc) {
                 id
                 totalValueLockedUSD
                 symbol
-                totalLiquidityUSD
-                totalLiquidity
-                inputTokenBalances
+                fees {
+                  id
+                  feeType
+                  feePercentage
+                }
                 inputTokens {
                   id
-                  decimals
                   symbol
                   name
-                  lastPriceUSD
+                  decimals
                 }
               }
             }
@@ -60,7 +60,7 @@ def retrieve_uniswap_information():
     json_dict = json.loads(req.text)
     return json_dict
 
-def retrieve_data_pools(cache=True):
+def retrieve_data_pools(networkName:str, cache=True):
     """
     Fetches data from an external data source (The Graph) or local cache
 
@@ -73,21 +73,26 @@ def retrieve_data_pools(cache=True):
         file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
         pools = utils.load_json_file(file_path) or _fetch_uniswap_data_pools() or None
     else:
-        pools = _fetch_uniswap_data_pools()
+        pools = _fetch_uniswap_data_pools(networkName)
 
     if pools:
         print(f'There are {len(pools)} trading pairs in the list.')
 
     return pools
 
-def _fetch_uniswap_data_pools():
+def _fetch_uniswap_data_pools(networkName):
     """internal use
     Fetch uniswap data pools and save it to local cache
 
     :return pools (dict): the data returned is a json file received from The Graph.
     """
-    print("fetching uniswap data pools...")
-    pools = retrieve_uniswap_information()["data"]["pools"]
+    if networkName == "arbitrum":
+        print("fetching arbitrum uniswap data pools...")
+        pools_tmp = retrieve_arbitrum_uniswap_information()["data"]["liquidityPools"][:500]
+        pools = uniswap_helper.standard_pool_structure(pools_tmp)
+    else:
+        print("fetching uniswap data pools...")
+        pools = retrieve_uniswap_information()["data"]["pools"]
 
     if pools:
         # save to local cache
@@ -95,6 +100,8 @@ def _fetch_uniswap_data_pools():
         utils.save_json_to_file(pools, file_path)
 
     return pools
+
+
 
 def create_tokens_and_trading_pairs(data_pools:[]):
     """
@@ -130,8 +137,8 @@ def create_tokens_and_trading_pairs(data_pools:[]):
 
         # TradingPair object
         id = Web3.to_checksum_address(pool["id"])
-        tvl_eth = pool["totalValueLockedETH"]
-        fee_tier = pool["feeTier"]
+        tvl_eth = float(pool["totalValueLockedETH"]) if len(pool["totalValueLockedETH"]) > 1 else 0
+        fee_tier = int(pool["feeTier"])
         token_0_price = float(pool["token0Price"])
         token_1_price = float(pool["token1Price"])
 
@@ -323,15 +330,16 @@ def get_token(symbol):
 
 def generate_pool_key(tokenA: str, tokenB: str):
     pool_key = sorted([tokenA, tokenB])
-    return "_".join(pool_key)
+    return PAIRS_DELIMITER.join(pool_key)
 
 
 #-----------------------------------------------------------------
+networkName = "arbitrum"
 
 user_input = input("Input 'y' to fetch newest data pools from external data source OR Press ENTER to load pools from local cache: ")
 use_cache = user_input.lower() != 'y'
 
-POOLS = retrieve_data_pools(use_cache)
+POOLS = retrieve_data_pools(networkName, use_cache)
 PAIRS_DICT, TOKENS_DICT = create_tokens_and_trading_pairs(POOLS)
 TRIANGLE_STRUCTURE_PAIRS = retrieve_structured_pairs(POOLS, use_cache)
 
