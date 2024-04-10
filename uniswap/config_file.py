@@ -1,6 +1,6 @@
 from web3 import Web3
 
-MAINNET_PROVIDER = "https://mainnet.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
+MAINNET_PROVIDER = "http://192.168.2.136:8545"   #8551"    # "https://mainnet.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
 SEPOLIA_PROVIDER = "https://sepolia.infura.io/v3/09a82cc7df434cf98ccc9e4373dcf0d6"
 
 

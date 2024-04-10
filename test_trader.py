@@ -112,7 +112,7 @@ class TestTrader(unittest.TestCase):
             trader = Trader(
                 pathway_triplet,
                 triad_util.get_depth_rate,
-                self._test_execute_flash,
+                self._test_execute_flash,   # triad_util.execute_flash
                 calculate_seed_fund=triad_util.get_seed_fund
             )
             traders_list.append(trader)

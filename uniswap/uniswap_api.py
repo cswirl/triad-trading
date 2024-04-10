@@ -88,7 +88,7 @@ def _fetch_uniswap_data_pools(networkName):
     """
     if networkName == "arbitrum":
         print("fetching arbitrum uniswap data pools...")
-        pools_tmp = retrieve_arbitrum_uniswap_information()["data"]["liquidityPools"][:500]
+        pools_tmp = retrieve_arbitrum_uniswap_information()["data"]["liquidityPools"][:400]
         pools = uniswap_helper.standard_pool_structure(pools_tmp)
     else:
         print("fetching uniswap data pools...")
