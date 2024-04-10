@@ -9,6 +9,20 @@ import uniswap
 def decimal_right_shift(val, decimals: int):
     return int(val * (10 ** decimals))
 
+def standard_pool_structure(pools: []):
+    std_pools = []
+    for x in pools:
+        pool = {
+                    "id": x["id"],
+                    "totalValueLockedETH": x["totalValueLockedUSD"],
+                    "token0Price": "1",
+                    "token1Price": "1",
+                    "feeTier": float(x["fees"][2]["feePercentage"])  * (10 ** 4),
+                    "token0": x["inputTokens"][0],
+                    "token1": x["inputTokens"][1]
+                }
+        std_pools.append(pool)
+    return std_pools
 
 #---------------------------------------------------------------------
 

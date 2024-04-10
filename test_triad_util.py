@@ -118,4 +118,9 @@ class TestTriadUtil(unittest.TestCase):
         assert b == FUNDING_TIER_3  # WETH
         print(f"{b} USD in = {c} {symbol} out")  # amount based on market rate
 
+    def test__get_flashswap_loaners(self):
+        result = triad_util.get_flashswap_loaners("DOG", "WETH", 3000)
+        reverse_res = triad_util.get_flashswap_loaners("WETH", "DOG", 3000)
+        pass
+
 
