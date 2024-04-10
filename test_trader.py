@@ -232,3 +232,7 @@ class TestTrader(unittest.TestCase):
     def _test_execute_flash(self, flashParams_dict):
         time.sleep(20)
         return (random.randint(0, 1), None, None)
+
+def test_execute_flash(flashParams_dict):
+    time.sleep(20)
+    return (random.randint(0, 1), None, None)

@@ -9,7 +9,7 @@ from enum import Enum
 from web3.exceptions import ContractLogicError, TimeExhausted
 
 import global_triad as gt
-import utils as u
+import utils as pygame
 from triad_util import FundingResponse
 import triad_util
 from uniswap import utils
@@ -92,7 +92,7 @@ class Trader:
             quotation_dict = await self.hunt_profit()
             # if the hunt_profit() finds a good depth - it will break its inner loop to proceed next line of code
             if quotation_dict:
-                u.play_sound()
+                pygame.play_sound()
 
             # Few attempts on getting funding from wallet and generous amount of sleep time amount is needed for this operation
             # - and then return False after enough attempts
@@ -485,10 +485,6 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
 
         filename = f"traders-list-status_{filename_timestamp}.txt"
         logs = "\n".join(msg)
-        utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename), quiet_mode=(counter > 0))
-
-        filename = f"traders-list-status_ACTIVE_{filename_timestamp}.txt"
-        logs = "\n".join(active_list_log)
         utils.save_text_file(logs, utils.filepath_builder(utils.LOGS_FOLDER_PATH, filename), quiet_mode=(counter > 0))
 
         counter += 1

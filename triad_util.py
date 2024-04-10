@@ -11,6 +11,7 @@ from uniswap.uniswapV3 import Uniswap
 from uniswap.config_file import *
 from app_constants import *             # will override other constants modules?
 
+from uniswap.uniswap_api import uniswap, w3
 
 class FundingResponse(Enum):
     ERROR = 0
@@ -318,14 +319,6 @@ def load_keys_from_file():
         print(f"error decoding JSON in file '{file_path}'.")
 
 
-#networkName = "sepolia"
-#networkName = "arbitrum"
-networkName = "mainnet"
-keys = uniswap_helper.load_keys_from_file()
-network = uniswap_api.get_network(networkName)
-print(f"running on network: {network}")
-provider = Web3.HTTPProvider(network["provider"])
-w3 = Web3(provider)
-uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
+
 
 

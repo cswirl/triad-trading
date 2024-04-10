@@ -7,6 +7,7 @@ from uniswap import token_pair, utils, func_triangular_arb, uniswap_helper
 from uniswap.config_file import *
 from uniswap.constants import *
 from uniswap.token_pair import TradingPair
+from uniswap.uniswapV3 import Uniswap
 
 """ RETRIEVE GRAPH QL MID PRICES FOR UNISWAP """
 
@@ -71,7 +72,7 @@ def retrieve_data_pools(networkName:str, cache=True):
         print(f"getting data pools from local cache...")
         # if no local cache found then pull data from a data source
         file_path = utils.filepath_builder(utils.DATA_FOLDER_PATH, POOLS_CACHE_FILENAME)
-        pools = utils.load_json_file(file_path) or _fetch_uniswap_data_pools() or None
+        pools = utils.load_json_file(file_path) or _fetch_uniswap_data_pools(networkName) or None
     else:
         pools = _fetch_uniswap_data_pools(networkName)
 
@@ -334,7 +335,9 @@ def generate_pool_key(tokenA: str, tokenB: str):
 
 
 #-----------------------------------------------------------------
-networkName = "arbitrum"
+#networkName = "sepolia"
+#networkName = "arbitrum"
+networkName = "mainnet"
 
 user_input = input("Input 'y' to fetch newest data pools from external data source OR Press ENTER to load pools from local cache: ")
 use_cache = user_input.lower() != 'y'
@@ -342,5 +345,13 @@ use_cache = user_input.lower() != 'y'
 POOLS = retrieve_data_pools(networkName, use_cache)
 PAIRS_DICT, TOKENS_DICT = create_tokens_and_trading_pairs(POOLS)
 TRIANGLE_STRUCTURE_PAIRS = retrieve_structured_pairs(POOLS, use_cache)
+
+
+keys = uniswap_helper.load_keys_from_file()
+network = get_network(networkName)
+print(f"running on network: {network}")
+provider = Web3.HTTPProvider(network["provider"])
+w3 = Web3(provider)
+uniswap = Uniswap(pKeys=keys, network_config=network, provider=provider)
 
 # original author shaun implementation - saves to local storage: shaun_uniswap_surface_rates.json
