@@ -456,7 +456,7 @@ async def trader_monitor(traders_list:[Trader], counter = 0):
         active_list_msg.append(f"{len(active_list_msg)} / {initial_active_traders} active traders")
 
         # save log ever 30 sec
-        filename_timestamp = _now.strftime("%Y-%m-%d_%Hh")
+        filename_timestamp = _now.strftime("%Y-%m-%d")
 
         filename = f"traders-list-status_{filename_timestamp}.txt"
         logs = "\n".join(msg)

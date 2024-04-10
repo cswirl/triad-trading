@@ -3,11 +3,11 @@
 # assigning True will make the trader instance to place trade against the pool thereafter
 # - may cause many duplicate trade on same pathway - or repeated trade failure or
 # - until a clearing system is implemented
-POST_TRADE_CONTINUE = True
+POST_TRADE_CONTINUE = False
 
 SECONDS_IN_A_DAY = 86400    # 1 Day = 60 sec * 60 min * 24 hour = 86400 seconds
 # REMEMBER: block time is 15 sec.
-POST_TRADE_EXECUTION_SLEEP = 60*60 # tentative
+POST_TRADE_EXECUTION_SLEEP = 30 # tentative
 DEFAULT_SLEEP_TIME = 16
 NO_FUNDS_SLEEP_TIME = 30
 CONTRACT_LOGIC_ERROR_SLEEP = 60 * 2
@@ -19,7 +19,7 @@ SYMBOL_NOT_IN_STARTING_TOKEN_SLEEP = 30 # or zero
 
 TRADER_MONITOR_SLEEP = 8
 
-TRADER_NUMBER_OF_REQUEST_PER_ROUND = 4.5
+TRADER_NUMBER_OF_REQUEST_PER_ROUND = 5
 
 # INFURA NETWORK QUERY LIMIT
 #  100,000 in a day
@@ -35,7 +35,7 @@ RATE_LIMIT_PER_SECOND = 33
 # SLEEP TIME = SECONDS_IN_A_DAY * total_active_traders * TRADER_NUMBER_OF_REQUEST_PER_ROUND / LIMIT_PER_DAY
 LIMIT_PER_DAY = 100000      # INFURA 100,000 Daily Limit
 
-TRANSACTION_FEE = 3
+TRANSACTION_FEE = 0.4
 PROFIT_MINIMUM = 1
 #
 DEPTH_MIN_RATE = 1.5    # in percent
@@ -44,8 +44,8 @@ sqrtPriceLimitX96 = 0
 GAS_FEE = 3000
 
 
-MAX_TRADING_TRANSACTIONS = 10 # losing gas fee for every reverted / fail triangular trade
-CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
+MAX_TRADING_TRANSACTIONS = 3 # losing gas fee for every reverted / fail triangular trade
+CONSECUTIVE_FAILED_TRADE_THRESHOLD = 3
 
 # FUNDING_TIER_0 = 500    #all stable coins
 # FUNDING_TIER_1 = 200
@@ -59,9 +59,9 @@ CONSECUTIVE_FAILED_TRADE_THRESHOLD = 5
 MULTI = 20
 FUNDING_TIER_0 = 100 * MULTI    #all stable coins
 FUNDING_TIER_1 = 80 * MULTI
-FUNDING_TIER_2 = 50 * MULTI
-FUNDING_TIER_3 = 30 * MULTI
-MINIMUM_FUNDING_IN_USD = 10 * MULTI
+FUNDING_TIER_2 = 25 * MULTI
+FUNDING_TIER_3 = 15 * MULTI
+MINIMUM_FUNDING_IN_USD = 100
 
 
 TRADER_LIST_LIMIT = 0  # Number of Traders. Use 0 for to get ALL

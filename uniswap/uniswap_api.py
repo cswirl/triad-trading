@@ -86,8 +86,13 @@ def _fetch_uniswap_data_pools():
 
     :return pools (dict): the data returned is a json file received from The Graph.
     """
-    print("fetching uniswap data pools...")
-    pools = retrieve_uniswap_information()["data"]["pools"]
+    if networkName == "arbitrum":
+        print("fetching arbitrum uniswap data pools...")
+        pools_tmp = retrieve_arbitrum_uniswap_information()["data"]["liquidityPools"][:400]
+        pools = uniswap_helper.standard_pool_structure(pools_tmp)
+    else:
+        print("fetching uniswap data pools...")
+        pools = retrieve_uniswap_information()["data"]["pools"]
 
     if pools:
         # save to local cache

@@ -295,8 +295,9 @@ def load_keys_from_file():
         print(f"error decoding JSON in file '{file_path}'.")
 
 
-networkName = "sepolia"
+#networkName = "sepolia"
 #networkName = "arbitrum"
+networkName = "mainnet"
 keys = uniswap_helper.load_keys_from_file()
 network = uniswap_api.get_network(networkName)
 print(f"running on network: {network}")
