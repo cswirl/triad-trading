@@ -122,7 +122,7 @@ class Trader:
             self.logger(f"PnL % : {profit_loss_perc}")
             self.logger(f"Trade Execution elapsed in {time.perf_counter() - start:0.2f} seconds")
             self.logger("#####################################################################")
-            self.logger(f"^^^^^^ TRIANGULAR TRADE COMPLETE ^^^^^^ {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}")
+            self.logger(f"^^^^^^ TRIANGULAR TRADE COMPLETE ^^^^^^ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             self.logger("#####################################################################")
 
             result_dict = {
